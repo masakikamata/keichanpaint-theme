@@ -211,12 +211,15 @@ function keichan_grant_run_update(): void {
     foreach ( $cities as $pref => $city_list ) {
         foreach ( $city_list as $city_name => $meta ) {
             $key    = $pref . '_' . $city_name;
-            $status = keichan_grant_fetch_status( $pref, $city_name, $meta['url'] );
+            $info   = keichan_grant_fetch_info( $meta['url'] );
 
             $current[ $key ] = [
                 'pref'       => $pref,
                 'city'       => $city_name,
-                'status'     => $status,
+                'status'     => $info['status'],
+                'amount'     => $info['amount'],
+                'period'     => $info['period'],
+                'detail'     => $info['detail'],
                 'updated_at' => current_time( 'Y-m-d H:i:s' ),
                 'url'        => $meta['url'],
             ];
@@ -228,13 +231,19 @@ function keichan_grant_run_update(): void {
 }
 
 // -------------------------------------------------------
-// 個別市区町村のステータス取得
-// ※ 各自治体のURLが設定されていれば簡易スクレイピング
-//   URLが空の場合は unknown を返す
+// 個別市区町村の情報取得（ステータス＋金額・期間・詳細）
+// URLが空の場合は unknown を返す
 // -------------------------------------------------------
-function keichan_grant_fetch_status( string $pref, string $city, string $url ): string {
+function keichan_grant_fetch_info( string $url ): array {
+    $empty = [
+        'status' => KEICHAN_GRANT_UNKNOWN,
+        'amount' => '',
+        'period' => '',
+        'detail' => '',
+    ];
+
     if ( empty( $url ) ) {
-        return KEICHAN_GRANT_UNKNOWN;
+        return $empty;
     }
 
     $response = wp_remote_get( $url, [
@@ -243,28 +252,50 @@ function keichan_grant_fetch_status( string $pref, string $city, string $url ): 
     ] );
 
     if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-        return KEICHAN_GRANT_UNKNOWN;
+        return $empty;
     }
 
     $body = wp_remote_retrieve_body( $response );
 
-    // キーワードマッチで状況を判定（各自治体ページに合わせて調整）
-    if ( preg_match( '/受付(終了|締め?切|中止|終了)/u', $body ) ||
+    // ── ステータス判定 ──
+    if ( preg_match( '/受付(終了|締め?切|中止)/u', $body ) ||
          preg_match( '/上限に?達し/u', $body ) ||
          preg_match( '/予算.*?終了/u', $body ) ) {
-        return KEICHAN_GRANT_FULL;
+        $status = KEICHAN_GRANT_FULL;
+    } elseif ( preg_match( '/残りわずか|定員(に?近づ|間近)/u', $body ) ||
+               preg_match( '/受付(残り|件数が少な)/u', $body ) ) {
+        $status = KEICHAN_GRANT_NEARLY_FULL;
+    } elseif ( preg_match( '/受付(中|しています)|申請(受付|可能)|募集(中|しています)/u', $body ) ) {
+        $status = KEICHAN_GRANT_AVAILABLE;
+    } else {
+        $status = KEICHAN_GRANT_UNKNOWN;
     }
 
-    if ( preg_match( '/残りわずか|残りわずかです|定員(に?近づ|間近)/u', $body ) ||
-         preg_match( '/受付(残り|件数が少な)/u', $body ) ) {
-        return KEICHAN_GRANT_NEARLY_FULL;
+    // ── 金額抽出（例：「上限10万円」「最大20万円」「補助額：15万円」）──
+    $amount = '';
+    if ( preg_match( '/(上限|最大|補助額[：:・]?|助成額[：:・]?|補助金額[：:・]?)\s*([\d,，]+)\s*(万円|円)/u', $body, $m ) ) {
+        $amount = $m[2] . $m[3];
+    } elseif ( preg_match( '/(\d+)\s*万円\s*(を?上限|まで|以内)/u', $body, $m ) ) {
+        $amount = $m[1] . '万円';
     }
 
-    if ( preg_match( '/受付(中|しています)|申請(受付|可能)|募集(中|しています)/u', $body ) ) {
-        return KEICHAN_GRANT_AVAILABLE;
+    // ── 期間抽出（例：「令和7年4月1日から」「2025年3月31日まで」）──
+    $period = '';
+    if ( preg_match( '/((令和|R)\s*\d+\s*年\s*\d+\s*月\s*\d+\s*日).{1,10}((令和|R)\s*\d+\s*年\s*\d+\s*月\s*\d+\s*日)/u', $body, $m ) ) {
+        $period = $m[1] . '〜' . $m[3];
+    } elseif ( preg_match( '/(\d{4}年\d{1,2}月\d{1,2}日).{1,10}(\d{4}年\d{1,2}月\d{1,2}日)/u', $body, $m ) ) {
+        $period = $m[1] . '〜' . $m[2];
+    } elseif ( preg_match( '/((令和|R)\s*\d+\s*年度)/u', $body, $m ) ) {
+        $period = $m[1];
     }
 
-    return KEICHAN_GRANT_UNKNOWN;
+    // ── 詳細抽出（metaディスクリプションまたはページ冒頭の説明文）──
+    $detail = '';
+    if ( preg_match( '/<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']/isu', $body, $m ) ) {
+        $detail = mb_substr( wp_strip_all_tags( html_entity_decode( $m[1] ) ), 0, 80 );
+    }
+
+    return compact( 'status', 'amount', 'period', 'detail' );
 }
 
 // -------------------------------------------------------
