@@ -326,7 +326,7 @@ function keichan_grant_admin_page(): void {
     if ( isset( $_POST['keichan_grant_set'] ) && check_admin_referer( 'keichan_grant_set_status' ) ) {
         $key    = sanitize_text_field( $_POST['grant_key'] ?? '' );
         $status = sanitize_text_field( $_POST['grant_status'] ?? KEICHAN_GRANT_UNKNOWN );
-        $url    = esc_url_raw( $_POST['grant_url'] ?? '' );
+        $url    = sanitize_text_field( $_POST['grant_url'] ?? '' );
 
         $current = get_option( 'keichan_grant_status', [] );
         if ( isset( $current[ $key ] ) ) {
@@ -341,6 +341,13 @@ function keichan_grant_admin_page(): void {
     $last    = get_option( 'keichan_grant_last_updated', '未実行' );
     $data    = get_option( 'keichan_grant_status', [] );
     $cities  = keichan_grant_cities();
+
+    // URLが保存されていない場合、初期化
+    foreach ( $data as $key => $row ) {
+        if ( empty( $row['url'] ) && isset( $cities[ $row['pref'] ][ $row['city'] ] ) ) {
+            $data[ $key ]['url'] = $cities[ $row['pref'] ][ $row['city'] ]['url'];
+        }
+    }
     $statuses = [
         KEICHAN_GRANT_AVAILABLE   => '受付中',
         KEICHAN_GRANT_NEARLY_FULL => '残りわずか',
