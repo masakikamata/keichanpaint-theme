@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Claude Auto Poster
  * Description: 市の公式サイトから助成金情報を読み取り、テンプレート記事のデザインをそのまま引き継いだ新記事を自動生成・投稿します。
- * Version: 4.5.0
+ * Version: 4.5.1
  * Author: Claude
  *
  * v4.4 変更点:
@@ -14,17 +14,15 @@
  *   ・「今すぐ生成」ボタン押下時に設定が保存されない問題を修正
  *   ・投稿元URLを変更したら処理済みリストを自動リセット
  *
- * v4.5.0 追加:
- *   ・GitHub Raw URL（複数指定可）からHTMLファイルを読み取り、投稿元URLを自動取得
- *   ・月次WP-Cronで自動チェック（内容ハッシュで差分検知）
- *   ・対応フォーマット: <tr data-city="…"> の表形式（grant-status-updater 互換）
+ * v4.5.1 変更:
+ *   ・GitHub取り込み機能は「助成金管理（東京）」画面に集約。Auto Poster側からは削除
+ *   ・投稿元URLは手動貼り付けで使用してください
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CAP_OPTION',      'cap_settings' );
-define( 'CAP_CRON',        'cap_auto_post_event' );
-define( 'CAP_GITHUB_CRON', 'cap_github_sync_event' );
+define( 'CAP_OPTION', 'cap_settings' );
+define( 'CAP_CRON',   'cap_auto_post_event' );
 
 // ──────────────────────────────────────────────
 // 有効化 / 無効化
@@ -33,15 +31,10 @@ define( 'CAP_GITHUB_CRON', 'cap_github_sync_event' );
 register_activation_hook( __FILE__, 'cap_activate' );
 register_deactivation_hook( __FILE__, 'cap_deactivate' );
 
-function cap_activate() {
-    cap_schedule_cron();
-    cap_schedule_github_cron();
-}
+function cap_activate() { cap_schedule_cron(); }
 function cap_deactivate() {
-    foreach ( [ CAP_CRON, CAP_GITHUB_CRON ] as $hook ) {
-        $ts = wp_next_scheduled( $hook );
-        if ( $ts ) wp_unschedule_event( $ts, $hook );
-    }
+    $ts = wp_next_scheduled( CAP_CRON );
+    if ( $ts ) wp_unschedule_event( $ts, CAP_CRON );
 }
 
 add_filter( 'cron_schedules', function( $s ) {
@@ -60,20 +53,10 @@ function cap_reschedule_cron() {
     cap_schedule_cron();
 }
 
-// [v4.5] GitHub取り込み用Cron（月次）
-function cap_schedule_github_cron() {
-    if ( wp_next_scheduled( CAP_GITHUB_CRON ) ) return;
-    wp_schedule_event( time() + HOUR_IN_SECONDS, 'cap_monthly', CAP_GITHUB_CRON );
-}
-
 // mu-plugins設置時の保険：init時にスケジュール
-add_action( 'init', function () {
-    cap_schedule_cron();
-    cap_schedule_github_cron();
-} );
+add_action( 'init', 'cap_schedule_cron' );
 
-add_action( CAP_CRON,        'cap_run_auto_post' );
-add_action( CAP_GITHUB_CRON, function () { cap_github_sync( false ); } );
+add_action( CAP_CRON, 'cap_run_auto_post' );
 
 // ──────────────────────────────────────────────
 // FAQ JSON-LD を wp_head で出力（wp_kses_post 対策）
@@ -476,131 +459,6 @@ function cap_insert_post_raw( $post_data ) {
     return $post_id;
 }
 
-// ══════════════════════════════════════════════
-// [v4.5] GitHub連携：HTMLファイルから投稿元URLを取り込む
-// ══════════════════════════════════════════════
-
-// HTMLタグ除去ヘルパー
-function cap_strip_tags_clean( $s ) {
-    $s = preg_replace( '/<[^>]+>/u', ' ', $s );
-    $s = html_entity_decode( $s, ENT_QUOTES, 'UTF-8' );
-    return trim( preg_replace( '/\s+/u', ' ', $s ) );
-}
-
-/**
- * HTMLから <tr data-city="…"> の公式URL（5列目）を抽出する。
- * tama_11shi_josei_copy.html のような表形式に対応。
- *
- * @return string[] 抽出されたURL一覧（重複除去済み）
- */
-function cap_extract_urls_from_html( $html ) {
-    $urls = [];
-    if ( empty( $html ) ) return $urls;
-
-    $html = mb_convert_encoding( $html, 'UTF-8', 'UTF-8, SJIS, EUC-JP, ISO-2022-JP, ASCII' );
-
-    if ( ! preg_match_all( '/<tr\s+data-city="([^"]+)"[^>]*>(.*?)<\/tr>/su', $html, $rows, PREG_SET_ORDER ) ) {
-        return $urls;
-    }
-
-    foreach ( $rows as $row ) {
-        $city = trim( html_entity_decode( $row[1], ENT_QUOTES, 'UTF-8' ) );
-        if ( $city === '' || $city === '全市共通' ) continue;
-
-        if ( ! preg_match_all( '/<td[^>]*>(.*?)<\/td>/su', $row[2], $tds ) ) continue;
-        $cells = $tds[1];
-        // セル順：0=市名, 1=助成金名, 2=受付期間, 3=残り枠, 4=公式URL, 5=PDF
-        if ( count( $cells ) < 5 ) continue;
-
-        if ( preg_match( '/https?:\/\/[^\s"<>]+/u', $cells[4], $m ) ) {
-            $urls[] = $m[0];
-        }
-    }
-
-    return array_values( array_unique( $urls ) );
-}
-
-/**
- * GitHubから登録済みのRaw URL（複数可）を取得して投稿元URLに反映する。
- *
- * @param bool $force ハッシュ比較を無視して強制更新
- * @return array ['status' => 'updated|nochange|error', 'message' => '…', 'urls' => [...]]
- */
-function cap_github_sync( $force = false ) {
-    $opts       = get_option( CAP_OPTION, [] );
-    $github_raw = trim( $opts['github_source_urls'] ?? '' );
-    if ( empty( $github_raw ) ) {
-        return [ 'status' => 'error', 'message' => 'GitHub Raw URLが未設定です' ];
-    }
-
-    $github_urls = array_values( array_filter( array_map( 'trim', explode( "\n", $github_raw ) ) ) );
-    if ( empty( $github_urls ) ) {
-        return [ 'status' => 'error', 'message' => 'GitHub Raw URLが未設定です' ];
-    }
-
-    $all_urls = [];
-    $hashes   = [];
-    $errors   = [];
-
-    foreach ( $github_urls as $g_url ) {
-        $resp = wp_remote_get( $g_url, [
-            'timeout'    => 30,
-            'user-agent' => 'Mozilla/5.0 (compatible; ClaudeAutoPoster/4.5)',
-        ] );
-        if ( is_wp_error( $resp ) ) {
-            $errors[] = $g_url . ': ' . $resp->get_error_message();
-            cap_log( "GitHub取得失敗: {$g_url} — " . $resp->get_error_message() );
-            continue;
-        }
-        $code = wp_remote_retrieve_response_code( $resp );
-        if ( $code !== 200 ) {
-            $errors[] = "HTTP{$code}: {$g_url}";
-            cap_log( "GitHub HTTP{$code}: {$g_url}" );
-            continue;
-        }
-
-        $body = wp_remote_retrieve_body( $resp );
-        $hashes[ $g_url ] = md5( $body );
-
-        $extracted = cap_extract_urls_from_html( $body );
-        $count_ext = count( $extracted );
-        $all_urls  = array_merge( $all_urls, $extracted );
-        cap_log( "📥 GitHub: {$g_url} から {$count_ext} 件抽出" );
-    }
-
-    update_option( 'cap_github_checked', current_time( 'Y-m-d H:i:s' ) );
-
-    // ハッシュ比較で変更検知
-    $last_hashes = get_option( 'cap_github_hashes', [] );
-    if ( ! $force && $hashes === $last_hashes ) {
-        return [ 'status' => 'nochange', 'message' => '変更なし（全ファイル前回と同一）' ];
-    }
-
-    if ( empty( $all_urls ) ) {
-        $msg = 'URLを抽出できませんでした';
-        if ( ! empty( $errors ) ) $msg .= '：' . implode( ' / ', $errors );
-        return [ 'status' => 'error', 'message' => $msg ];
-    }
-
-    $all_urls        = array_values( array_unique( $all_urls ) );
-    $new_source_text = implode( "\n", $all_urls );
-
-    // 投稿元URLに反映 → 処理済みリストをリセット
-    $opts['source_urls'] = $new_source_text;
-    update_option( CAP_OPTION, $opts );
-    update_option( 'cap_github_hashes', $hashes );
-    update_option( 'cap_github_synced', current_time( 'Y-m-d H:i:s' ) );
-    update_option( 'cap_done_urls', [] );
-
-    cap_log( "✅ GitHubから " . count( $all_urls ) . " 件のURLを投稿元に反映（処理済みリセット）" );
-
-    return [
-        'status'  => 'updated',
-        'message' => '✅ ' . count( $all_urls ) . ' 件のURLを投稿元に反映しました',
-        'urls'    => $all_urls,
-    ];
-}
-
 // ──────────────────────────────────────────────
 // [v4.4.1] フォームからの設定保存を共通化
 //   「設定を保存」と「今すぐ生成」の両方で使う
@@ -622,22 +480,21 @@ function cap_save_form_settings() {
     }
 
     $new = [
-        'api_key'            => sanitize_text_field( $_POST['api_key']    ?? '' ),
-        'gemini_key'         => sanitize_text_field( $_POST['gemini_key'] ?? '' ),
-        'source_urls'        => sanitize_textarea_field( $_POST['source_urls']        ?? '' ),
-        'github_source_urls' => sanitize_textarea_field( $_POST['github_source_urls'] ?? '' ),
-        'template_page_url'  => $tmpl_url,
-        'template_page_id'   => $tmpl_id,
-        'preserve_sections'  => sanitize_textarea_field( $_POST['preserve_sections'] ?? '申請手続き' ),
-        'chara_name'         => sanitize_text_field( $_POST['chara_name']  ?? 'けいちゃん' ),
-        'chara_img_id'       => intval( $_POST['cap_chara_img_id']         ?? 0 ),
-        'company'            => sanitize_text_field( $_POST['company']     ?? '' ),
-        'model'              => sanitize_text_field( $_POST['model']       ?? 'claude-opus-4-8' ),
-        'post_status'        => in_array( $_POST['post_status'], ['draft','publish'] ) ? $_POST['post_status'] : 'draft',
-        'category'           => intval( $_POST['category'] ?? 0 ),
-        'interval'           => in_array( $_POST['interval'], ['hourly','twicedaily','daily','cap_monthly'] ) ? $_POST['interval'] : 'daily',
-        'gen_images'         => isset( $_POST['gen_images'] ) ? 1 : 0,
-        'image_style'        => in_array( $_POST['image_style'], ['photo','flat','manga'] ) ? $_POST['image_style'] : 'photo',
+        'api_key'           => sanitize_text_field( $_POST['api_key']    ?? '' ),
+        'gemini_key'        => sanitize_text_field( $_POST['gemini_key'] ?? '' ),
+        'source_urls'       => sanitize_textarea_field( $_POST['source_urls'] ?? '' ),
+        'template_page_url' => $tmpl_url,
+        'template_page_id'  => $tmpl_id,
+        'preserve_sections' => sanitize_textarea_field( $_POST['preserve_sections'] ?? '申請手続き' ),
+        'chara_name'        => sanitize_text_field( $_POST['chara_name']  ?? 'けいちゃん' ),
+        'chara_img_id'      => intval( $_POST['cap_chara_img_id']         ?? 0 ),
+        'company'           => sanitize_text_field( $_POST['company']     ?? '' ),
+        'model'             => sanitize_text_field( $_POST['model']       ?? 'claude-opus-4-8' ),
+        'post_status'       => in_array( $_POST['post_status'], ['draft','publish'] ) ? $_POST['post_status'] : 'draft',
+        'category'          => intval( $_POST['category'] ?? 0 ),
+        'interval'          => in_array( $_POST['interval'], ['hourly','twicedaily','daily','cap_monthly'] ) ? $_POST['interval'] : 'daily',
+        'gen_images'        => isset( $_POST['gen_images'] ) ? 1 : 0,
+        'image_style'       => in_array( $_POST['image_style'], ['photo','flat','manga'] ) ? $_POST['image_style'] : 'photo',
     ];
 
     // [v4.4.1] 投稿元URLが変わったら処理済みリストを自動リセット
@@ -940,38 +797,25 @@ function cap_settings_page() {
         echo '<div class="notice notice-info"><p>設定を保存して手動実行しました。ログを確認してください。</p></div>';
     }
 
-    // [v4.5] GitHubから今すぐ取り込み
-    if ( isset( $_POST['cap_github_sync'] ) && check_admin_referer( 'cap_save' ) ) {
-        $opts   = cap_save_form_settings();
-        $result = cap_github_sync( true );
-        $class  = $result['status'] === 'error'    ? 'error'
-                : ( $result['status'] === 'nochange' ? 'info' : 'success' );
-        echo '<div class="notice notice-' . esc_attr( $class ) . '"><p>' . esc_html( $result['message'] ) . '</p></div>';
-    }
-
     if ( isset( $_POST['cap_clear_done'] ) && check_admin_referer( 'cap_save' ) ) {
         update_option( 'cap_done_urls', [] );
         echo '<div class="notice notice-info"><p>処理済みURLをリセットしました。</p></div>';
     }
 
-    $categories     = get_categories( ['hide_empty' => false] );
-    $logs           = array_reverse( get_option( 'cap_logs', [] ) );
-    $done_urls      = get_option( 'cap_done_urls', [] );
-    $next_run       = wp_next_scheduled( CAP_CRON );
-    $next_github    = wp_next_scheduled( CAP_GITHUB_CRON );
-    $github_synced  = get_option( 'cap_github_synced',  '未取得' );
-    $github_checked = get_option( 'cap_github_checked', '未取得' );
-    $chara_img_id   = intval( $opts['chara_img_id'] ?? 0 );
-    $chara_preview  = $chara_img_id ? wp_get_attachment_image( $chara_img_id, [80,80] ) : '';
-    $tmpl_id        = intval( $opts['template_page_id'] ?? 0 );
-    $tmpl_post      = $tmpl_id ? get_post( $tmpl_id ) : null;
-    $tmpl_label     = $tmpl_post ? '✅ ' . $tmpl_post->post_title . ' (ID:' . $tmpl_id . ')' : '';
+    $categories    = get_categories( ['hide_empty' => false] );
+    $logs          = array_reverse( get_option( 'cap_logs', [] ) );
+    $done_urls     = get_option( 'cap_done_urls', [] );
+    $next_run      = wp_next_scheduled( CAP_CRON );
+    $chara_img_id  = intval( $opts['chara_img_id'] ?? 0 );
+    $chara_preview = $chara_img_id ? wp_get_attachment_image( $chara_img_id, [80,80] ) : '';
+    $tmpl_id       = intval( $opts['template_page_id'] ?? 0 );
+    $tmpl_post     = $tmpl_id ? get_post( $tmpl_id ) : null;
+    $tmpl_label    = $tmpl_post ? '✅ ' . $tmpl_post->post_title . ' (ID:' . $tmpl_id . ')' : '';
     ?>
     <div class="wrap">
-        <h1>🤖 Claude Auto Poster <small style="font-size:13px;color:#7a8fa6;">v4.5.0 GitHub連携</small></h1>
+        <h1>🤖 Claude Auto Poster <small style="font-size:13px;color:#7a8fa6;">v4.5.1</small></h1>
         <p>次回自動実行: <strong><?= $next_run ? date_i18n('Y-m-d H:i:s',$next_run) : '未設定' ?></strong>
-           &nbsp;|&nbsp; 処理済みURL: <strong><?= count($done_urls) ?>件</strong>
-           &nbsp;|&nbsp; 次回GitHubチェック: <strong><?= $next_github ? date_i18n('Y-m-d H:i:s',$next_github) : '未設定' ?></strong></p>
+           &nbsp;|&nbsp; 処理済みURL: <strong><?= count($done_urls) ?>件</strong></p>
 
         <form method="post">
             <?php wp_nonce_field('cap_save'); ?>
@@ -1015,26 +859,7 @@ function cap_settings_page() {
                         <textarea name="source_urls" rows="8" class="large-text"><?= esc_textarea($opts['source_urls']??'') ?></textarea>
                         <p class="description">市区町村の助成金公式ページ。上から順番に1件ずつ処理します。<br>
                         ※ URLを変更すると処理済みリストは自動リセットされます。<br>
-                        ※ 下のGitHub取り込みを使うと、ここが自動で上書きされます。</p>
-                    </td>
-                </tr>
-            </table>
-
-            <h2 style="border-left:4px solid #7a8fa6;padding-left:10px;">📥 GitHubから自動取り込み（投稿元URL）</h2>
-            <table class="form-table">
-                <tr>
-                    <th>GitHub Raw URL<br><small>（1行1URL・複数可）</small></th>
-                    <td>
-                        <textarea name="github_source_urls" rows="6" class="large-text" placeholder="https://raw.githubusercontent.com/masakikamata/keichanpaint-theme/main/tama_11shi_josei_copy.html&#10;https://raw.githubusercontent.com/.../23ku_josei.html"><?= esc_textarea($opts['github_source_urls']??'') ?></textarea>
-                        <p class="description">
-                            助成金一覧HTMLファイルのGitHub Raw URLを指定（複数可・1行1件）。<br>
-                            各ファイル内の <code>&lt;tr data-city="…"&gt;</code> から公式URL（5列目）を抽出し、<br>
-                            上の「投稿元URL」を自動更新します。月次でWP-Cronが自動チェックし、内容が変わったときだけ反映します。
-                        </p>
-                        <p>
-                            最終取り込み: <strong><?= esc_html($github_synced) ?></strong>
-                            ／ 最終チェック: <strong><?= esc_html($github_checked) ?></strong>
-                        </p>
+                        ※ GitHubからの自動取り込みは「ツール → 助成金管理（東京）」画面で行ってください。</p>
                     </td>
                 </tr>
             </table>
@@ -1145,15 +970,12 @@ function cap_settings_page() {
             </table>
 
             <p class="submit">
-                <input type="submit" name="cap_save"        class="button button-primary"   value="設定を保存">
+                <input type="submit" name="cap_save"       class="button button-primary"   value="設定を保存">
                 &nbsp;
-                <input type="submit" name="cap_github_sync" class="button"                  value="📥 今すぐGitHubから取り込む"
-                       onclick="return confirm('GitHub Raw URLからHTMLを取得して投稿元URLを更新します（処理済みリストはリセットされます）。よろしいですか？')">
-                &nbsp;
-                <input type="submit" name="cap_run_now"     class="button button-secondary" value="▶ 今すぐ1記事生成・投稿"
+                <input type="submit" name="cap_run_now"    class="button button-secondary" value="▶ 今すぐ1記事生成・投稿"
                        onclick="return confirm('設定を保存して次のURLから記事を生成します。よろしいですか？')">
                 &nbsp;
-                <input type="submit" name="cap_clear_done"  class="button"                  value="処理済みURLをリセット">
+                <input type="submit" name="cap_clear_done" class="button"                  value="処理済みURLをリセット">
             </p>
         </form>
 
