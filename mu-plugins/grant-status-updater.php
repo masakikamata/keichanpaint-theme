@@ -2,9 +2,12 @@
 /**
  * Plugin Name: 助成金ステータス管理（東京）
  * Description: 東京都の市区町村ごとに助成金名・残り期間・残り枠を管理する
- * Version: 3.0.0
+ * Version: 3.1.0
  * 設置場所: wp-content/mu-plugins/grant-status-updater.php
  */
+
+// GitHubから取り込む既定のRaw URL（管理画面で変更可）
+const KEICHAN_GRANT_GITHUB_DEFAULT_URL = 'https://raw.githubusercontent.com/masakikamata/keichanpaint-theme/main/tama_11shi_josei_copy.html';
 
 // -------------------------------------------------------
 // 東京都の市区町村マスタ
@@ -110,6 +113,160 @@ function keichan_scrape_url( string $url ): array {
 }
 
 // -------------------------------------------------------
+// GitHub 同期：URL設定
+// -------------------------------------------------------
+function keichan_grant_github_url(): string {
+    $url = get_option( 'keichan_grant_github_url', '' );
+    return $url ?: KEICHAN_GRANT_GITHUB_DEFAULT_URL;
+}
+
+// -------------------------------------------------------
+// HTMLから市別データを抽出（tama_11shi_josei_copy.html 形式）
+// 期待構造: <tr data-city="市名"><td>市名</td><td>助成金名</td>
+//          <td>受付期間</td><td>残り枠</td><td>公式URL</td><td>PDF URL</td></tr>
+// -------------------------------------------------------
+function keichan_grant_strip_tags_clean( string $s ): string {
+    $s = preg_replace( '/<[^>]+>/u', ' ', $s );
+    $s = html_entity_decode( $s, ENT_QUOTES, 'UTF-8' );
+    return trim( preg_replace( '/\s+/u', ' ', $s ) );
+}
+
+function keichan_grant_parse_html( string $html ): array {
+    $result = [];
+    if ( ! $html ) return $result;
+
+    $html = mb_convert_encoding( $html, 'UTF-8', 'UTF-8, SJIS, EUC-JP, ISO-2022-JP, ASCII' );
+
+    if ( ! preg_match_all( '/<tr\s+data-city="([^"]+)"[^>]*>(.*?)<\/tr>/su', $html, $rows, PREG_SET_ORDER ) ) {
+        return $result;
+    }
+
+    foreach ( $rows as $row ) {
+        $city = trim( html_entity_decode( $row[1], ENT_QUOTES, 'UTF-8' ) );
+        if ( $city === '' || $city === '全市共通' ) continue;
+        // 同じ市が複数行ある場合は最初の行を採用
+        if ( isset( $result[ $city ] ) ) continue;
+
+        if ( ! preg_match_all( '/<td[^>]*>(.*?)<\/td>/su', $row[2], $tds ) ) continue;
+        $cells = $tds[1];
+        if ( count( $cells ) < 5 ) continue;
+
+        // セル順：0=市名, 1=助成金名, 2=受付期間, 3=残り枠, 4=公式URL, 5=PDF
+        $url = '';
+        if ( preg_match( '/https?:\/\/[^\s"<>]+/u', $cells[4], $m ) ) {
+            $url = $m[0];
+        }
+
+        $result[ $city ] = [
+            'grant_name' => mb_substr( keichan_grant_strip_tags_clean( $cells[1] ), 0, 200 ),
+            'period'     => mb_substr( keichan_grant_strip_tags_clean( $cells[2] ), 0, 100 ),
+            'slots'      => mb_substr( keichan_grant_strip_tags_clean( $cells[3] ), 0, 100 ),
+            'url'        => $url,
+        ];
+    }
+
+    return $result;
+}
+
+// -------------------------------------------------------
+// GitHub から同期（HTML 取得 → 差分があれば反映）
+// 戻り値: ['status' => 'updated|nochange|error', 'message' => '...', 'updated_cities' => [...]]
+// -------------------------------------------------------
+function keichan_grant_sync_from_github( bool $force = false ): array {
+    $url = keichan_grant_github_url();
+    if ( empty( $url ) ) {
+        return [ 'status' => 'error', 'message' => 'GitHub URLが未設定です' ];
+    }
+
+    $response = wp_remote_get( $url, [
+        'timeout'    => 30,
+        'user-agent' => 'Mozilla/5.0 (compatible; KeichanGrantSync/1.0)',
+    ] );
+    if ( is_wp_error( $response ) ) {
+        return [ 'status' => 'error', 'message' => '取得失敗: ' . $response->get_error_message() ];
+    }
+    $code = wp_remote_retrieve_response_code( $response );
+    if ( $code !== 200 ) {
+        return [ 'status' => 'error', 'message' => 'HTTPステータス: ' . $code ];
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $hash = md5( $body );
+
+    $last_hash = get_option( 'keichan_grant_github_hash', '' );
+    update_option( 'keichan_grant_github_checked', current_time( 'Y-m-d H:i:s' ), false );
+
+    if ( ! $force && $hash === $last_hash ) {
+        return [ 'status' => 'nochange', 'message' => '変更なし（前回と同じ内容）' ];
+    }
+
+    $parsed = keichan_grant_parse_html( $body );
+    if ( empty( $parsed ) ) {
+        return [ 'status' => 'error', 'message' => 'HTMLからデータを抽出できませんでした' ];
+    }
+
+    $data    = get_option( 'keichan_grant_tokyo', [] );
+    $updated = [];
+    foreach ( $parsed as $city => $row ) {
+        if ( ! isset( $data[ $city ] ) ) continue; // 市区町村マスタにない市はスキップ
+        if ( ( $data[ $city ] ?? [] ) !== $row ) {
+            $data[ $city ] = $row;
+            $updated[]     = $city;
+        }
+    }
+
+    update_option( 'keichan_grant_tokyo', $data, false );
+    update_option( 'keichan_grant_github_hash', $hash, false );
+    update_option( 'keichan_grant_github_synced', current_time( 'Y-m-d H:i:s' ), false );
+    update_option( 'keichan_grant_tokyo_updated', current_time( 'Y-m-d H:i:s' ), false );
+
+    return [
+        'status'         => 'updated',
+        'message'        => '✓ ' . count( $updated ) . '件の市を更新',
+        'updated_cities' => $updated,
+    ];
+}
+
+// -------------------------------------------------------
+// AJAX：GitHubから手動同期
+// -------------------------------------------------------
+add_action( 'wp_ajax_keichan_github_sync', function () {
+    check_ajax_referer( 'keichan_github_sync', 'nonce' );
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( '権限がありません' );
+    }
+    $force  = ! empty( $_POST['force'] );
+    $result = keichan_grant_sync_from_github( $force );
+    if ( $result['status'] === 'error' ) {
+        wp_send_json_error( $result['message'] );
+    }
+    wp_send_json_success( $result );
+} );
+
+// -------------------------------------------------------
+// WP-Cron：月次自動同期
+// -------------------------------------------------------
+add_filter( 'cron_schedules', function ( $schedules ) {
+    if ( ! isset( $schedules['keichan_monthly'] ) ) {
+        $schedules['keichan_monthly'] = [
+            'interval' => 30 * DAY_IN_SECONDS,
+            'display'  => '毎月（30日ごと）',
+        ];
+    }
+    return $schedules;
+} );
+
+add_action( 'init', function () {
+    if ( ! wp_next_scheduled( 'keichan_grant_github_cron' ) ) {
+        wp_schedule_event( time() + HOUR_IN_SECONDS, 'keichan_monthly', 'keichan_grant_github_cron' );
+    }
+} );
+
+add_action( 'keichan_grant_github_cron', function () {
+    keichan_grant_sync_from_github( false );
+} );
+
+// -------------------------------------------------------
 // AJAX：URLから情報を自動取得（管理画面用）
 // -------------------------------------------------------
 add_action( 'wp_ajax_keichan_fetch_url', function () {
@@ -161,12 +318,23 @@ function keichan_grant_admin_page(): void {
         }
         update_option( 'keichan_grant_tokyo', $data, false );
         update_option( 'keichan_grant_tokyo_updated', current_time( 'Y-m-d H:i:s' ), false );
+
+        // GitHub取り込みURLも同フォームで保存
+        $github_url = esc_url_raw( wp_unslash( $_POST['github_url'] ?? '' ) );
+        update_option( 'keichan_grant_github_url', $github_url, false );
+
         echo '<div class="notice notice-success"><p>保存しました。</p></div>';
     }
 
-    $data    = get_option( 'keichan_grant_tokyo', [] );
-    $updated = get_option( 'keichan_grant_tokyo_updated', '未保存' );
-    $nonce   = wp_create_nonce( 'keichan_fetch_nonce' );
+    $data         = get_option( 'keichan_grant_tokyo', [] );
+    $updated      = get_option( 'keichan_grant_tokyo_updated', '未保存' );
+    $nonce        = wp_create_nonce( 'keichan_fetch_nonce' );
+    $sync_nonce   = wp_create_nonce( 'keichan_github_sync' );
+    $github_url   = keichan_grant_github_url();
+    $github_sync  = get_option( 'keichan_grant_github_synced', '未取得' );
+    $github_check = get_option( 'keichan_grant_github_checked', '未取得' );
+    $next_cron    = wp_next_scheduled( 'keichan_grant_github_cron' );
+    $next_cron_s  = $next_cron ? wp_date( 'Y-m-d H:i:s', $next_cron ) : '未予約';
     ?>
     <div class="wrap">
         <h1>助成金管理（東京都）</h1>
@@ -178,16 +346,43 @@ function keichan_grant_admin_page(): void {
             内容を確認・修正 → 最下部の「<strong>保存</strong>」ボタンで一括保存
         </div>
 
-        <p>
-            <button type="button" id="fetch-all-btn" class="button button-secondary">
-                ✦ URLが入力済みの行を全て自動取得
-            </button>
-            <span id="fetch-all-status" style="margin-left:1em;color:#666;"></span>
-        </p>
-
         <form method="post" id="grant-form">
             <?php wp_nonce_field( 'keichan_grant_save' ); ?>
             <input type="hidden" name="keichan_save" value="1">
+
+            <div style="background:#e8f4fd;border:1px solid #5b9dd9;padding:.8rem 1rem;border-radius:4px;margin-bottom:1rem;">
+                <h2 style="margin:0 0 .5rem;font-size:14px;">📥 GitHubから取り込む</h2>
+                <p style="margin:.3rem 0;font-size:12px;color:#555;">
+                    指定したGitHub Raw URL（HTMLファイル）から、各市の助成金データを自動で取り込みます。
+                    月次のWP-Cronで自動チェックし、内容が変わっていれば反映します。
+                </p>
+                <p style="margin:.5rem 0;">
+                    <label style="display:block;font-weight:600;margin-bottom:.2rem;">GitHub Raw URL:</label>
+                    <input type="url" name="github_url" id="github_url" style="width:80%;font-family:monospace;font-size:12px;"
+                           value="<?php echo esc_attr( $github_url ); ?>"
+                           placeholder="https://raw.githubusercontent.com/.../...html">
+                </p>
+                <p style="margin:.5rem 0;font-size:12px;color:#555;">
+                    最終取り込み: <strong><?php echo esc_html( $github_sync ); ?></strong>
+                    ／ 最終チェック: <strong><?php echo esc_html( $github_check ); ?></strong>
+                    ／ 次回自動チェック: <strong><?php echo esc_html( $next_cron_s ); ?></strong>
+                </p>
+                <p style="margin:.5rem 0;">
+                    <button type="button" id="github-sync-btn" class="button button-primary">📥 今すぐGitHubから取り込む</button>
+                    <button type="button" id="github-force-btn" class="button">強制更新（変更検知を無視）</button>
+                    <span id="github-sync-status" style="margin-left:1em;color:#666;"></span>
+                </p>
+                <p style="margin:.3rem 0 0;font-size:11px;color:#888;">
+                    ※ URLを変更した場合は、下の「保存」ボタンで先にURLを保存してから取り込んでください。
+                </p>
+            </div>
+
+            <p>
+                <button type="button" id="fetch-all-btn" class="button button-secondary">
+                    ✦ URLが入力済みの行を全て自動取得（個別スクレイピング）
+                </button>
+                <span id="fetch-all-status" style="margin-left:1em;color:#666;"></span>
+            </p>
 
             <table class="widefat striped" style="table-layout:fixed;">
                 <colgroup>
@@ -256,8 +451,43 @@ function keichan_grant_admin_page(): void {
 
     <script>
     (function($){
-        var ajaxUrl = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
-        var nonce   = '<?php echo esc_js( $nonce ); ?>';
+        var ajaxUrl   = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
+        var nonce     = '<?php echo esc_js( $nonce ); ?>';
+        var syncNonce = '<?php echo esc_js( $sync_nonce ); ?>';
+
+        // GitHub から取り込み
+        function githubSync( force ) {
+            var $status = $('#github-sync-status');
+            $status.css('color', '#666').text( '取得中…' );
+            $('#github-sync-btn, #github-force-btn').prop('disabled', true);
+
+            $.post( ajaxUrl, {
+                action: 'keichan_github_sync',
+                nonce:  syncNonce,
+                force:  force ? 1 : 0
+            }, function( res ) {
+                if ( res.success ) {
+                    var d = res.data || {};
+                    $status.css('color', '#0a7f3f').text( d.message || '取り込み完了' );
+                    if ( d.status === 'updated' ) {
+                        // データ反映のためページを再読込
+                        setTimeout(function(){ location.reload(); }, 1200);
+                    }
+                } else {
+                    $status.css('color', '#c00').text( '✗ ' + ( res.data || 'エラー' ) );
+                }
+            }).fail(function(){
+                $status.css('color', '#c00').text( '✗ 通信エラー' );
+            }).always(function(){
+                $('#github-sync-btn, #github-force-btn').prop('disabled', false);
+            });
+        }
+        $('#github-sync-btn').on('click', function(){ githubSync( false ); });
+        $('#github-force-btn').on('click', function(){
+            if ( confirm('変更検知を無視して強制的に再取り込みします。よろしいですか？') ) {
+                githubSync( true );
+            }
+        });
 
         // 1行ずつ取得
         function fetchRow( $tr, cb ) {
