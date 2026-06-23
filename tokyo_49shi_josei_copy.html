@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>東京都 49市区町村 助成金コピー表 令和8年度</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:13px;background:#f0f2f5;color:#222;}
+
+header{background:#1a2a3a;color:#fff;padding:16px 20px;border-bottom:4px solid #2d6a4f;}
+header h1{font-size:17px;font-weight:800;margin-bottom:4px;}
+header p{font-size:11px;color:#aab;}
+
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #dde;font-size:12px;}
+.bar input{padding:5px 12px;border:1px solid #ccc;border-radius:20px;font-size:12px;width:200px;outline:none;}
+.bar input:focus{border-color:#2d6a4f;}
+.tip{background:#f0faf4;border:1px solid #b7dfc7;border-radius:4px;padding:3px 10px;color:#145a32;font-size:11px;}
+
+.wrap{overflow-x:auto;padding:10px 10px 30px;}
+table{width:100%;border-collapse:collapse;min-width:860px;background:#fff;}
+
+thead th{
+  background:#2c3e50;color:#fff;
+  padding:8px 10px;font-size:11px;font-weight:700;text-align:left;
+  border:1px solid #3d5060;white-space:nowrap;
+  position:sticky;top:0;z-index:5;
+}
+tbody tr{border-bottom:2px solid #c8e6c9;}
+tbody tr:nth-child(odd) td{background:#fff;}
+tbody tr:nth-child(even) td{background:#f7fbf8;}
+tbody tr:hover td{background:#e8f5e9;}
+
+td{padding:0;border:1px solid #dde;vertical-align:top;}
+td:first-child{
+  padding:8px 10px;font-weight:800;white-space:nowrap;
+  background:#e8f5e9 !important;
+  border-right:2px solid #81c784;
+  font-size:13px;min-width:90px;
+  vertical-align:middle;
+}
+
+.f{display:block;padding:6px 9px;cursor:text;user-select:text;line-height:1.5;min-height:30px;transition:background .1s;}
+.f:hover{background:#fffbe8;}
+.f:focus{outline:2px solid #2d6a4f;background:#f0fff4;}
+.f.url{font-family:monospace;font-size:11px;color:#0055cc;word-break:break-all;}
+.f.pdf{font-family:monospace;font-size:11px;color:#c0392b;word-break:break-all;}
+.f.na{color:#bbb;font-style:italic;font-size:11px;}
+
+.st{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;white-space:nowrap;}
+.open{background:#d4edda;color:#155724;}
+.warn{background:#fff3cd;color:#856404;}
+.end {background:#f8d7da;color:#721c24;}
+.chk {background:#e2e3e5;color:#383d41;}
+
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#fff;padding:7px 18px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:999;}
+#toast.show{opacity:1;}
+
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 14px;font-size:11px;background:#f5f6fa;border-bottom:1px solid #dde;}
+.note{margin:10px;padding:10px 14px;background:#fff8e1;border-left:4px solid #ffc107;border-radius:3px;font-size:11px;color:#555;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 東京都 49市区町村 建築関係助成金 コピー用一覧表 ／ 令和8年度（2026）</h1>
+  <p>23区＋26市町村 ／ 2026年6月現在（出典：けいちゃんペイント「東京と助成金」ページ）</p>
+</header>
+
+<div class="bar">
+  <input type="text" id="fil" placeholder="🔍 市区町村名で絞り込み…" oninput="doFil(this.value)" autocomplete="off">
+  <span class="tip">💡 セルをクリックして Ctrl+A → Ctrl+C でコピー</span>
+</div>
+<div class="legend">
+  <span><span class="st open">受付中</span></span>
+  <span><span class="st warn">要確認</span></span>
+  <span><span class="st end">受付終了</span></span>
+  <span><span class="st chk">要最新確認</span></span>
+</div>
+
+<div class="note">⚠ 令和8年度の最新状況が未公表の自治体は「要確認」「要最新確認」としています。各自治体の公式ページで最新情報を必ずご確認ください。申請前に必ず着工前申請の有無もご確認ください。</div>
+
+<div class="wrap">
+<table>
+<thead>
+<tr>
+  <th style="min-width:88px">市区町村名</th>
+  <th style="min-width:190px">助成金名称</th>
+  <th style="min-width:130px">受付期間</th>
+  <th style="min-width:100px">残り枠・状況</th>
+  <th style="min-width:270px">公式URL</th>
+  <th style="min-width:270px">PDF URL</th>
+</tr>
+</thead>
+<tbody>
+
+<!-- 東京 23区 -->
+<tr data-city="千代田区">
+  <td>千代田区</td>
+  <td><span class="f" tabindex="0">千代田区 ヒートアイランド対策助成（高反射率塗料・遮熱塗料・日射フィルム等）</span></td>
+  <td><span class="f" tabindex="0">〜令和9年2月頃（先着順）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">一部受付中</span> 塗料枠終了・日射フィルムのみ受付中</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.chiyoda.lg.jp/koho/machizukuri/kankyo/hojo/heat-island.html</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.chiyoda.lg.jp/koho/machizukuri/kankyo/hojo/sho-ene.html （省エネ改修等助成制度ページ）</span></td>
+</tr>
+<tr data-city="中央区">
+  <td>中央区</td>
+  <td><span class="f" tabindex="0">中央区 事業所用 省エネルギー機器等導入費助成（高反射率塗料・日射フィルム含む）</span></td>
+  <td><span class="f" tabindex="0">令和8年4月1日〜予算終了次第（令和9年3月15日まで導入完了）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 残額84%（4/30時点）月初更新</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="港区">
+  <td>港区</td>
+  <td><span class="f" tabindex="0">港区 創エネルギー・省エネルギー機器等設置費助成（住宅・集合住宅・事業所）</span></td>
+  <td><span class="f" tabindex="0">令和8年度 〜令和9年2月末日（集合住宅管理組合は9月末日）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 着工前申請必須</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="新宿区">
+  <td>新宿区</td>
+  <td><span class="f" tabindex="0">新宿区 省エネルギー及び創エネルギー機器等補助制度（住宅・集合住宅共用部・事業所）</span></td>
+  <td><span class="f" tabindex="0">令和8年度 第1期受付中（施工・支払完了後に申請）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 先着順</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="文京区">
+  <td>文京区</td>
+  <td><span class="f" tabindex="0">文京区 新エネルギー・省エネルギー設備設置費助成（住宅・事業所）</span></td>
+  <td><span class="f" tabindex="0">令和8年4月〜予算終了次第</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 予算残額をページで公表中</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="台東区">
+  <td>台東区</td>
+  <td><span class="f" tabindex="0">台東区 脱炭素推進助成金（旧エコ助成金 ／ 令和8年度より改称・申請方法変更）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（R8年度より申請方法・時期が大きく変更）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">受付中</span> 要最新確認</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="墨田区">
+  <td>墨田区</td>
+  <td><span class="f" tabindex="0">墨田区 地球温暖化防止設備導入助成制度（高反射率塗料等含む・着工前申請必須）</span></td>
+  <td><span class="f" tabindex="0">令和8年4月〜予算終了次第</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> R8年度より様式変更あり</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="江東区">
+  <td>江東区</td>
+  <td><span class="f" tabindex="0">江東区 地球温暖化防止設備導入助成（個人住宅用・集合住宅用・事業所 ／ 外壁塗装：面積×1,000円）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（R8年度より申請様式一部変更）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="品川区">
+  <td>品川区</td>
+  <td><span class="f" tabindex="0">品川区 不燃化特区支援事業（老朽建築物除却・建替え助成 ／ 木造：上限1,650万円）</span></td>
+  <td><span class="f" tabindex="0">〜令和12年度（期限付き制度）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 令和8年4月改定</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="目黒区">
+  <td>目黒区</td>
+  <td><span class="f" tabindex="0">目黒区 住宅リフォーム資金助成（一般リフォーム・省エネリフォーム・アスベスト除去）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="大田区">
+  <td>大田区</td>
+  <td><span class="f" tabindex="0">大田区 住宅リフォーム助成事業（外壁・屋根塗装含む ／ 工事費の10%・上限20万円）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="世田谷区">
+  <td>世田谷区</td>
+  <td><span class="f" tabindex="0">世田谷区 エコ住宅補助金（窓・ドア断熱改修等 ／ R8年度より工事前事前登録必須・電子申請）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（工事前の事前登録必須）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="渋谷区">
+  <td>渋谷区</td>
+  <td><span class="f" tabindex="0">渋谷区 住宅に関する助成・融資支援（省エネ系住宅助成は要確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> エネファーム助成は終了</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="中野区">
+  <td>中野区</td>
+  <td><span class="f" tabindex="0">中野区 省エネ・再エネ機器助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="杉並区">
+  <td>杉並区</td>
+  <td><span class="f" tabindex="0">杉並区 エコ住宅促進助成（再生可能エネルギー等の導入助成及び断熱改修等省エネルギー対策助成）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="豊島区">
+  <td>豊島区</td>
+  <td><span class="f" tabindex="0">豊島区 エコ住宅・事業者支援 助成金制度（個人住宅・集合住宅共用部・事業所）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="北区">
+  <td>北区</td>
+  <td><span class="f" tabindex="0">北区 再生可能エネルギー及び省エネルギー機器等導入助成（個人・事業者）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（予算の範囲内）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="荒川区">
+  <td>荒川区</td>
+  <td><span class="f" tabindex="0">荒川区 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="板橋区">
+  <td>板橋区</td>
+  <td><span class="f" tabindex="0">板橋区 住宅用新エネ・省エネ機器補助金（廃止済）→ いたばし環境アクションポイント事業に移行</span></td>
+  <td><span class="f" tabindex="0">—（補助金制度は廃止）</span></td>
+  <td><span class="f" tabindex="0"><span class="st end">補助金廃止</span> ポイント事業に移行</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="練馬区">
+  <td>練馬区</td>
+  <td><span class="f" tabindex="0">練馬区 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="足立区">
+  <td>足立区</td>
+  <td><span class="f" tabindex="0">足立区 省エネリフォーム補助金（遮熱塗装含む ／ 遮熱塗装は戸建て住宅のみ ／ 着工5開庁日前申請）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（着工前申請必須）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 足場設置時点で着工とみなす</span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="葛飾区">
+  <td>葛飾区</td>
+  <td><span class="f" tabindex="0">葛飾区 かつしかエコ助成金《個人住宅用》（太陽光・省エネ機器等）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="江戸川区">
+  <td>江戸川区</td>
+  <td><span class="f" tabindex="0">江戸川区 省エネ設備等助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+
+<!-- 多摩地区（市町村） -->
+<tr data-city="八王子市">
+  <td>八王子市</td>
+  <td><span class="f" tabindex="0">八王子市 居住環境整備補助金（省エネ改修・遮熱設備・耐震・ブロック塀等）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="立川市">
+  <td>立川市</td>
+  <td><span class="f" tabindex="0">立川市 省エネ・再エネ機器設置費補助金（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="武蔵野市">
+  <td>武蔵野市</td>
+  <td><span class="f" tabindex="0">武蔵野市 省エネ・再エネ設備導入助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="三鷹市">
+  <td>三鷹市</td>
+  <td><span class="f" tabindex="0">三鷹市 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="青梅市">
+  <td>青梅市①</td>
+  <td><span class="f" tabindex="0">青梅市 住宅用省エネルギー等設備普及促進補助制度（太陽光・蓄電池・省エネ機器等）</span></td>
+  <td><span class="f" tabindex="0">令和8年度 ※R7年度は7月7日に受付終了。R8年度は4月1日〜（予算終了次第終了）</span></td>
+  <td><span class="f" tabindex="0"><span class="st chk">要最新確認</span> R7は7月で終了</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.ome.tokyo.jp/soshiki/22/67056.html</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.ome.tokyo.jp/soshiki/22/24983.html （省エネ支援ページ内PDF）</span></td>
+</tr>
+<tr data-city="青梅市">
+  <td>青梅市②</td>
+  <td><span class="f" tabindex="0">青梅市 省エネルギー住宅改修補助制度（住宅省エネ改修費用の一部補助）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f url" tabindex="0">https://www.city.ome.tokyo.jp/soshiki/22/24983.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「パンフレット（PDF）」参照</span></td>
+</tr>
+<tr data-city="府中市">
+  <td>府中市</td>
+  <td><span class="f" tabindex="0">府中市 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="昭島市">
+  <td>昭島市</td>
+  <td><span class="f" tabindex="0">昭島市 住宅用新エネルギー機器等普及促進補助金（太陽光・蓄電池・エネファーム等）</span></td>
+  <td><span class="f" tabindex="0">令和8年度 4月1日〜（機器設置後に申請 ／ R7年度申請期間：令和7年12月1日〜令和8年1月30日）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> R8年度ページは要確認</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.akishima.lg.jp/machi/kankyo/1008380/1008381/1002588.html</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.akishima.lg.jp/machi/kankyo/1008380/1008381/1002588.html （ページ内「R8年度版補助金のご案内（PDF）」）</span></td>
+</tr>
+<tr data-city="調布市">
+  <td>調布市</td>
+  <td><span class="f" tabindex="0">調布市 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="町田市">
+  <td>町田市</td>
+  <td><span class="f" tabindex="0">町田市 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="小金井市">
+  <td>小金井市</td>
+  <td><span class="f" tabindex="0">小金井市 住宅用新エネルギー機器等普及促進補助金（太陽光・蓄電池・エコキュート・断熱窓等）</span></td>
+  <td><span class="f" tabindex="0">令和8年4月1日〜（予算の範囲内 ／ 機器設置後に申請）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 令和8年度ページ公開済み</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.koganei.lg.jp/kurashi/473/hozyokin/sinnene.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「申請の手引き及びQアンドA集（PDF）」参照</span></td>
+</tr>
+<tr data-city="小平市">
+  <td>小平市</td>
+  <td><span class="f" tabindex="0">小平市 住宅用新エネルギー・省エネルギー機器等設置補助金（太陽光・蓄電池・断熱窓・高断熱ドア等）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（先着順 ／ 機器設置後に申請）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 公式ページで残額確認</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.kodaira.lg.jp/kurashi/006/006035.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「補助金のご案内（PDF）」参照</span></td>
+</tr>
+<tr data-city="日野市">
+  <td>日野市①</td>
+  <td><span class="f" tabindex="0">日野市 省エネ家電買換え促進補助金（エアコン・冷蔵庫の買換え ／ 購入費の1/4・上限2万円）</span></td>
+  <td><span class="f" tabindex="0">令和8年6月1日（月）〜令和9年2月26日（金）必着 ／ 先着順（予算額到達次第終了）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 日野市内店舗での購入が条件</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.hino.lg.jp/kurashi/kankyo/co2/1027463.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「申請書（PDF）」参照</span></td>
+</tr>
+<tr data-city="日野市">
+  <td>日野市②</td>
+  <td><span class="f" tabindex="0">日野市 実質再エネ電力等切替支援金（実質再エネ100%電力への切替支援）</span></td>
+  <td><span class="f" tabindex="0">令和8年6月1日より受付開始予定</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中（6月〜）</span></span></td>
+  <td><span class="f url" tabindex="0">https://www.city.hino.lg.jp/kurashi/kankyo/co2/1030413.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="東村山市">
+  <td>東村山市</td>
+  <td><span class="f" tabindex="0">東村山市 省エネ・再エネ機器助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="国分寺市">
+  <td>国分寺市</td>
+  <td><span class="f" tabindex="0">国分寺市 脱炭素社会の実現に向けた再エネ・省エネ機器等設置助成制度（太陽光・蓄電池・断熱窓・エコキュート等 ／ 住宅・事業所）</span></td>
+  <td><span class="f" tabindex="0">令和8年4月1日〜（R7年度は予算上限達成のため11月25日終了 ／ R8年度は4月1日公式ページで発表）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要最新確認</span> R7は11月で終了。R8年度情報は公式ページへ</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.kokubunji.tokyo.jp/kurashi/seikatsu/1030856/1033980.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「助成制度のご案内（PDF）」参照（4月公開予定）</span></td>
+</tr>
+<tr data-city="国立市">
+  <td>国立市</td>
+  <td><span class="f" tabindex="0">国立市 省エネ・再エネ機器等設置助成（外壁塗装系含む）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="福生市">
+  <td>福生市</td>
+  <td><span class="f" tabindex="0">福生市 省エネ・再エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="狛江市">
+  <td>狛江市</td>
+  <td><span class="f" tabindex="0">狛江市 省エネ等設備設置費補助金（外壁・屋根塗装系含む）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="東大和市">
+  <td>東大和市①</td>
+  <td><span class="f" tabindex="0">東大和市 住宅用再生可能エネルギー・省エネルギー機器等設置補助金（太陽光・蓄電池・エネファーム等 ／ 上限：太陽光10万円・蓄電池5万円）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（先着順）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 公式ページで受付状況を確認</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.higashiyamato.lg.jp/kurashi/kankyo/1010243/index.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「補助金のご案内（PDF）」参照</span></td>
+</tr>
+<tr data-city="東大和市">
+  <td>東大和市②</td>
+  <td><span class="f" tabindex="0">東大和市 耐震診断・耐震改修・除却の助成制度</span></td>
+  <td><span class="f" tabindex="0">令和8年度（先着順）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 公式ページで受付状況を確認</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.higashiyamato.lg.jp/kurashi/zei/1001753/1001773.html</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.higashiyamato.lg.jp/_res/projects/default_project/_page_/001/012/044/panf.pdf</span></td>
+</tr>
+<tr data-city="清瀬市">
+  <td>清瀬市</td>
+  <td><span class="f" tabindex="0">清瀬市 太陽光発電機器等設置補助金（太陽光・エネファーム等 ／ R7年度は4月9日に受付終了）</span></td>
+  <td><span class="f" tabindex="0">令和8年度 4月〜（先着順 ／ R7年度は4月9日に締切）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 例年4月上旬に終了するため早期申請推奨</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.kiyose.lg.jp/kurashi/gomi/kankyouhozen/1003845/index.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「補助金のご案内（PDF）」参照（4月〜公開）</span></td>
+</tr>
+<tr data-city="東久留米市">
+  <td>東久留米市</td>
+  <td><span class="f" tabindex="0">東久留米市 省エネ・再エネ設備設置 補助金・助成金（太陽光・蓄電池・断熱等 ／ 詳細は公式ページ）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 東京都補助金情報ガイドも参照</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.higashikurume.lg.jp/kurashi/kankyo/shizen/1018923/index.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内PDF参照</span></td>
+</tr>
+<tr data-city="武蔵村山市">
+  <td>武蔵村山市</td>
+  <td><span class="f" tabindex="0">武蔵村山市 省エネ・再エネ機器設置費補助（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="多摩市">
+  <td>多摩市</td>
+  <td><span class="f" tabindex="0">多摩市 住宅用創エネルギー・省エネルギー機器等導入補助金（太陽光・蓄電池・断熱窓・エコキュート等 ／ 住宅・集合住宅）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（令和8年4月〜予算終了次第 ／ 機器設置後に申請）</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span> 令和8年度ページ公開済み</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.tama.lg.jp/kurashi/kankyo/ondanka/hojo/1014430.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「補助金のご案内（PDF）」参照</span></td>
+</tr>
+<tr data-city="稲城市">
+  <td>稲城市</td>
+  <td><span class="f" tabindex="0">稲城市 省エネ設備助成（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="羽村市">
+  <td>羽村市</td>
+  <td><span class="f" tabindex="0">羽村市 省エネ・再エネ機器設置費補助（詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="あきる野市">
+  <td>あきる野市</td>
+  <td><span class="f" tabindex="0">あきる野市 住宅改修工事等助成事業（外壁塗装含む ／ 詳細は公式ページで確認）</span></td>
+  <td><span class="f" tabindex="0">令和8年度</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">受付中</span></span></td>
+  <td><span class="f na" tabindex="0">公式ページで確認</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+<tr data-city="西東京市">
+  <td>西東京市</td>
+  <td><span class="f" tabindex="0">西東京市 住宅用再生可能エネルギー・省エネルギー機器等設置費補助金（太陽光・蓄電池・断熱窓等 ／ 機器設置後に申請）</span></td>
+  <td><span class="f" tabindex="0">令和8年度（先着順）</span></td>
+  <td><span class="f" tabindex="0"><span class="st warn">要確認</span> 公式ページで状況確認</span></td>
+  <td><span class="f url" tabindex="0">https://www.city.nishitokyo.lg.jp/kurashi/gomi_kankyo/kankyo/ondanka/hojokin/index.html</span></td>
+  <td><span class="f na" tabindex="0">ページ内「補助金のご案内（PDF）」参照</span></td>
+</tr>
+
+<!-- 横断リンク -->
+<tr data-city="全市共通">
+  <td style="background:#e8f0fb !important;border-right-color:#7b9ed9;">🔗 全市共通</td>
+  <td><span class="f" tabindex="0">クール・ネット東京 区市町村補助金リンク集（東京都全域 ／ 全市の補助金ページ一覧）</span></td>
+  <td><span class="f" tabindex="0">随時更新</span></td>
+  <td><span class="f" tabindex="0"><span class="st open">常時参照可</span></span></td>
+  <td><span class="f url" tabindex="0">https://www.tokyo-co2down.jp/subsidy/city/</span></td>
+  <td><span class="f na" tabindex="0">—</span></td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+<div id="toast">📋 コピーしました</div>
+
+<script>
+function doFil(v){
+  v=v.trim();
+  document.querySelectorAll('tbody tr').forEach(function(tr){
+    var c=tr.dataset.city||'';
+    tr.style.display=(!v||c.includes(v)||c==='全市共通')?'':'none';
+  });
+}
+// クリックで全選択
+document.querySelectorAll('.f').forEach(function(el){
+  el.addEventListener('click',function(){
+    var s=window.getSelection(),r=document.createRange();
+    r.selectNodeContents(this);s.removeAllRanges();s.addRange(r);
+  });
+});
+document.addEventListener('copy',function(){
+  var t=document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},1300);
+});
+</script>
+</body>
+</html>
