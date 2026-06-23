@@ -23,15 +23,30 @@ function keichan_grant_tokyo_cities(): array {
 }
 
 // -------------------------------------------------------
+// 既知データの初期値（手動確認済み）
+// -------------------------------------------------------
+function keichan_grant_tokyo_seed(): array {
+    return [
+        '千代田区' => [
+            'grant_name' => '令和8年度ヒートアイランド対策助成／省エネルギー改修等助成制度',
+            'period'     => '随時受付（先着順、予算がなくなりしだい終了）',
+            'slots'      => '省エネ改修：申請額が予算の約50％超（令和8年6月1日時点）',
+            'url'        => 'https://www.city.chiyoda.lg.jp/koho/machizukuri/kankyo/hojo/heat-island.html https://www.city.chiyoda.lg.jp/koho/machizukuri/kankyo/hojo/sho-ene.html',
+        ],
+    ];
+}
+
+// -------------------------------------------------------
 // 初期データ作成
 // -------------------------------------------------------
 function keichan_grant_maybe_init(): void {
     if ( get_option( 'keichan_grant_tokyo' ) !== false ) {
         return;
     }
+    $seed    = keichan_grant_tokyo_seed();
     $initial = [];
     foreach ( keichan_grant_tokyo_cities() as $city ) {
-        $initial[ $city ] = [ 'grant_name' => '', 'period' => '', 'slots' => '', 'url' => '' ];
+        $initial[ $city ] = $seed[ $city ] ?? [ 'grant_name' => '', 'period' => '', 'slots' => '', 'url' => '' ];
     }
     add_option( 'keichan_grant_tokyo', $initial, '', false );
 }
