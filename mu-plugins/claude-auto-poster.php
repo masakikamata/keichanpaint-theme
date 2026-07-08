@@ -638,8 +638,11 @@ function cap_run_auto_post() {
     }
 
     // ── Claude API 呼び出し ──
+    // max_tokens: Opus 4.8 は最大128K出力可能。テンプレHTMLを丸ごと再現する
+    // 本用途では日本語+HTMLで容易に2万トークン超になるため32000で十分な余裕を確保。
+    // timeout: 大きめの応答生成に耐えるよう300秒に拡張。
     $response = wp_remote_post( 'https://api.anthropic.com/v1/messages', [
-        'timeout' => 180,
+        'timeout' => 300,
         'headers' => [
             'x-api-key'         => $claude_key,
             'anthropic-version' => '2023-06-01',
@@ -647,7 +650,7 @@ function cap_run_auto_post() {
         ],
         'body' => json_encode( [
             'model'      => $model,
-            'max_tokens' => 16000,
+            'max_tokens' => 32000,
             'messages'   => [ [ 'role' => 'user', 'content' => $prompt ] ],
         ] ),
     ] );
