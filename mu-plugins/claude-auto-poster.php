@@ -165,6 +165,44 @@ function cap_unmark_url( $url ) {
     update_option( 'cap_done_urls', $done );
 }
 
+// JSON文字列内に紛れ込んだ生の制御文字（改行・タブ等）をエスケープする。
+// 文字列外の空白や改行はそのまま維持する。
+function cap_escape_json_string_controls( $raw ) {
+    $out       = '';
+    $in_string = false;
+    $escaped   = false;
+    $len       = strlen( $raw );
+    for ( $i = 0; $i < $len; $i++ ) {
+        $c = $raw[ $i ];
+        if ( $in_string ) {
+            if ( $escaped ) {
+                $out    .= $c;
+                $escaped = false;
+                continue;
+            }
+            if ( $c === '\\' ) { $out .= $c; $escaped = true; continue; }
+            if ( $c === '"' )  { $out .= $c; $in_string = false; continue; }
+            $ord = ord( $c );
+            if ( $ord < 0x20 ) {
+                switch ( $c ) {
+                    case "\n": $out .= '\\n'; break;
+                    case "\r": $out .= '\\r'; break;
+                    case "\t": $out .= '\\t'; break;
+                    case "\b": $out .= '\\b'; break;
+                    case "\f": $out .= '\\f'; break;
+                    default:   $out .= sprintf( '\\u%04x', $ord ); break;
+                }
+                continue;
+            }
+            $out .= $c;
+        } else {
+            if ( $c === '"' ) $in_string = true;
+            $out .= $c;
+        }
+    }
+    return $out;
+}
+
 // ──────────────────────────────────────────────
 // 情報源ページのテキスト取得
 // ──────────────────────────────────────────────
@@ -609,7 +647,7 @@ function cap_run_auto_post() {
         ],
         'body' => json_encode( [
             'model'      => $model,
-            'max_tokens' => 8000,
+            'max_tokens' => 16000,
             'messages'   => [ [ 'role' => 'user', 'content' => $prompt ] ],
         ] ),
     ] );
@@ -646,7 +684,16 @@ function cap_run_auto_post() {
 
     $article = json_decode( $raw, true );
 
-    if ( json_last_error() !== JSON_ERROR_NONE ) { cap_log( 'JSONパースエラー(' . json_last_error_msg() . '): ' . substr( $raw, 0, 400 ) ); return; }
+    // Claudeが content 内に生の制御文字（改行/タブ等）を入れた場合の復旧
+    if ( json_last_error() !== JSON_ERROR_NONE ) {
+        $fixed   = cap_escape_json_string_controls( $raw );
+        $article = json_decode( $fixed, true );
+        if ( json_last_error() === JSON_ERROR_NONE ) {
+            cap_log( '⚠️ JSON内の制御文字をエスケープして復旧しました。' );
+        }
+    }
+
+    if ( json_last_error() !== JSON_ERROR_NONE ) { cap_log( 'JSONパースエラー(' . json_last_error_msg() . '): ' . substr( $raw, 0, 400 ) ); cap_unmark_url( $url ); return; }
     if ( empty( $article['title'] ) || empty( $article['content'] ) ) { cap_log( 'title/content が空です: ' . substr( $raw, 0, 300 ) ); return; }
 
     $content = $article['content'];
