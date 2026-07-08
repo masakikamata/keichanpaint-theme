@@ -158,6 +158,13 @@ function cap_next_url() {
     return $url;
 }
 
+// 生成失敗時にURLを「未処理」へ戻す（クレジット不足など、次回リトライ可能なエラー用）
+function cap_unmark_url( $url ) {
+    $done = get_option( 'cap_done_urls', [] );
+    $done = array_values( array_diff( $done, [ $url ] ) );
+    update_option( 'cap_done_urls', $done );
+}
+
 // ──────────────────────────────────────────────
 // 情報源ページのテキスト取得
 // ──────────────────────────────────────────────
@@ -602,22 +609,37 @@ function cap_run_auto_post() {
         ],
         'body' => json_encode( [
             'model'      => $model,
-            'max_tokens' => 16000,
+            'max_tokens' => 8000,
             'messages'   => [ [ 'role' => 'user', 'content' => $prompt ] ],
         ] ),
     ] );
 
-    if ( is_wp_error( $response ) ) { cap_log( 'Claude APIエラー: ' . $response->get_error_message() ); return; }
+    if ( is_wp_error( $response ) ) { cap_log( 'Claude APIエラー: ' . $response->get_error_message() ); cap_unmark_url( $url ); return; }
 
     $http_code = wp_remote_retrieve_response_code( $response );
-    $body      = json_decode( wp_remote_retrieve_body( $response ), true );
+    $body_raw  = wp_remote_retrieve_body( $response );
+    $body      = json_decode( $body_raw, true );
+
+    // クレジット残高不足を明示的に検出
+    $err_msg  = $body['error']['message'] ?? '';
+    $err_type = $body['error']['type']    ?? '';
+    if ( $http_code === 400 && stripos( $err_msg, 'credit balance is too low' ) !== false ) {
+        cap_log( '❌ Anthropic APIのクレジット残高不足です。https://console.anthropic.com/settings/billing でチャージまたはプランをアップグレードしてください。' );
+        cap_unmark_url( $url );
+        return;
+    }
+    if ( $http_code >= 400 ) {
+        cap_log( "Claude APIがHTTP{$http_code}を返しました（{$err_type}）: " . substr( $err_msg ?: $body_raw, 0, 300 ) );
+        cap_unmark_url( $url );
+        return;
+    }
 
     if ( ( $body['stop_reason'] ?? '' ) === 'max_tokens' ) {
         cap_log( '⚠️ Claude応答がmax_tokensで打ち切られました。テンプレートが長すぎる可能性があります。' );
     }
 
     $raw = $body['content'][0]['text'] ?? '';
-    if ( empty( $raw ) ) { cap_log( "Claude応答が空です。HTTP{$http_code}: " . substr( wp_remote_retrieve_body( $response ), 0, 300 ) ); return; }
+    if ( empty( $raw ) ) { cap_log( "Claude応答が空です。HTTP{$http_code}: " . substr( $body_raw, 0, 300 ) ); cap_unmark_url( $url ); return; }
 
     if ( preg_match( '/```(?:json)?\s*([\s\S]+?)\s*```/s', $raw, $m ) ) $raw = $m[1];
     if ( preg_match( '/(\{[\s\S]*\})/s', $raw, $m2 ) ) $raw = $m2[1];
