@@ -26,6 +26,50 @@ foreach ( $cities as $c ) {
         $filled++;
     }
 }
+
+// -------------------------------------------------------
+// 白地図上のピン座標（神奈川県、画像に対する % 位置）
+// 神奈川県の白地図を images/kanagawa-map.png に配置した際の
+// 各市町村のおおよその位置。実際の地図画像に合わせて微調整可。
+// -------------------------------------------------------
+$pin_coords = [
+    // ── 政令指定都市 ──
+    '横浜市'     => [ 'x' => 76.0, 'y' => 55.0 ],
+    '川崎市'     => [ 'x' => 82.0, 'y' => 40.0 ],
+    '相模原市'   => [ 'x' => 45.0, 'y' => 30.0 ],
+    // ── 一般市（16） ──
+    '横須賀市'   => [ 'x' => 82.0, 'y' => 72.0 ],
+    '平塚市'     => [ 'x' => 50.0, 'y' => 66.0 ],
+    '鎌倉市'     => [ 'x' => 72.0, 'y' => 68.0 ],
+    '藤沢市'     => [ 'x' => 63.0, 'y' => 64.0 ],
+    '小田原市'   => [ 'x' => 26.0, 'y' => 72.0 ],
+    '茅ヶ崎市'   => [ 'x' => 58.0, 'y' => 67.0 ],
+    '逗子市'     => [ 'x' => 76.0, 'y' => 71.0 ],
+    '三浦市'     => [ 'x' => 84.0, 'y' => 83.0 ],
+    '秦野市'     => [ 'x' => 38.0, 'y' => 55.0 ],
+    '厚木市'     => [ 'x' => 47.0, 'y' => 47.0 ],
+    '大和市'     => [ 'x' => 60.0, 'y' => 48.0 ],
+    '伊勢原市'   => [ 'x' => 44.0, 'y' => 53.0 ],
+    '海老名市'   => [ 'x' => 55.0, 'y' => 47.0 ],
+    '座間市'     => [ 'x' => 55.0, 'y' => 43.0 ],
+    '南足柄市'   => [ 'x' => 24.0, 'y' => 60.0 ],
+    '綾瀬市'     => [ 'x' => 58.0, 'y' => 52.0 ],
+    // ── 町村（14） ──
+    '葉山町'     => [ 'x' => 79.0, 'y' => 72.0 ],
+    '寒川町'     => [ 'x' => 55.0, 'y' => 60.0 ],
+    '大磯町'     => [ 'x' => 47.0, 'y' => 71.0 ],
+    '二宮町'     => [ 'x' => 42.0, 'y' => 71.0 ],
+    '中井町'     => [ 'x' => 34.0, 'y' => 62.0 ],
+    '大井町'     => [ 'x' => 30.0, 'y' => 63.0 ],
+    '松田町'     => [ 'x' => 27.0, 'y' => 56.0 ],
+    '山北町'     => [ 'x' => 15.0, 'y' => 52.0 ],
+    '開成町'     => [ 'x' => 26.0, 'y' => 59.0 ],
+    '箱根町'     => [ 'x' => 18.0, 'y' => 72.0 ],
+    '真鶴町'     => [ 'x' => 21.0, 'y' => 80.0 ],
+    '湯河原町'   => [ 'x' => 17.0, 'y' => 82.0 ],
+    '愛川町'     => [ 'x' => 44.0, 'y' => 37.0 ],
+    '清川村'     => [ 'x' => 40.0, 'y' => 44.0 ],
+];
 ?>
 
 <style>
@@ -69,7 +113,93 @@ foreach ( $cities as $c ) {
     border-radius: 99px;
 }
 
-/* 白地図エリア */
+/* 白地図＋ピン */
+.grant-map-wrap {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    margin: 1.5rem 0 2.5rem;
+    border-radius: 12px;
+    overflow: visible;
+    background: #f8f9fa;
+    padding: .5rem;
+}
+.grant-map-wrap img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+.map-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #999;
+    font-size: .85rem;
+    line-height: 1.8;
+}
+.map-empty code {
+    background: #fff;
+    padding: .15rem .4rem;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+/* ピン */
+.map-pin {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    cursor: pointer;
+    z-index: 10;
+    animation: pin-drop-kanagawa .5s cubic-bezier(.36,.07,.19,.97) both;
+    text-decoration: none;
+}
+@keyframes pin-drop-kanagawa {
+    0%   { transform: translate(-50%, calc(-100% - 60px)); opacity: 0; }
+    60%  { transform: translate(-50%, calc(-100% + 8px));  opacity: 1; }
+    80%  { transform: translate(-50%, calc(-100% - 4px)); }
+    100% { transform: translate(-50%, -100%); opacity: 1; }
+}
+.map-pin svg {
+    width: 24px;
+    height: 34px;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,.35));
+    transition: transform .15s ease;
+}
+.map-pin:hover svg { transform: scale(1.3); }
+
+/* ツールチップ */
+.map-pin .pin-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.82);
+    color: #fff;
+    font-size: .75rem;
+    white-space: nowrap;
+    padding: .3rem .65rem;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index: 20;
+}
+.map-pin .pin-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0,0,0,.82);
+}
+.map-pin:hover .pin-tip { display: block; }
+
+/* ピンクリック時のカードハイライト */
+.grant-card.highlight {
+    border-color: #e44d00;
+    box-shadow: 0 0 0 3px rgba(228,77,0,.25);
+}
+
+/* 既存のgrant-map(未使用) */
 .grant-map {
     text-align: center;
     margin: 1.5rem 0 2.5rem;
@@ -228,18 +358,59 @@ foreach ( $cities as $c ) {
         </div>
     </header>
 
-    <!-- 白地図 -->
+    <!-- 白地図＋色分けピン -->
     <?php
     $map_path = get_stylesheet_directory() . '/images/kanagawa-map.png';
     $map_url  = get_stylesheet_directory_uri() . '/images/kanagawa-map.png';
     ?>
-    <div class="grant-map">
+    <div class="grant-map-wrap">
         <?php if ( file_exists( $map_path ) ) : ?>
-            <img src="<?php echo esc_url( $map_url ); ?>" alt="神奈川県 市町村地図">
+            <img id="kanagawa-map-img" src="<?php echo esc_url( $map_url ); ?>" alt="神奈川県 市町村地図">
+
+            <?php
+            $delay = 0;
+            foreach ( $pin_coords as $city => $pos ) :
+                $row     = $data[ $city ] ?? [];
+                $has     = ! empty( $row['grant_name'] ) || ! empty( $row['period'] ) || ! empty( $row['slots'] );
+
+                // ピン色をステータス別に判定（受付中=緑 / 要確認=橙 / 受付終了=赤 / データなし=グレー）
+                $pin_fill = '#bbb';
+                $cls      = 'no-data';
+                if ( $has ) {
+                    if ( ! empty( $row['slots'] ) && preg_match( '/(終了|締切|締め切り)/u', $row['slots'] ) ) {
+                        $pin_fill = '#dc3545';
+                        $cls      = 'status-full';
+                    } elseif ( ! empty( $row['slots'] ) && preg_match( '/(要確認|要最新|わずか|残り\s*[1-5]\D)/u', $row['slots'] ) ) {
+                        $pin_fill = '#fd7e14';
+                        $cls      = 'status-warn';
+                    } else {
+                        $pin_fill = '#198754';
+                        $cls      = 'status-open';
+                    }
+                }
+
+                $tip = esc_html( $city );
+                if ( $has && ! empty( $row['slots'] ) ) $tip .= ' ／ ' . esc_html( $row['slots'] );
+                $anchor = 'kcity-' . esc_attr( rawurlencode( $city ) );
+                $delay += 30;
+            ?>
+            <a class="map-pin <?php echo esc_attr( $cls ); ?>"
+               href="#<?php echo $anchor; ?>"
+               style="left:<?php echo esc_attr( $pos['x'] ); ?>%;top:<?php echo esc_attr( $pos['y'] ); ?>%;animation-delay:<?php echo (int) $delay; ?>ms;"
+               title="<?php echo esc_attr( $city ); ?>">
+                <svg viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 21 9 21s9-14.25 9-21c0-4.97-4.03-9-9-9z"
+                          fill="<?php echo $pin_fill; ?>"/>
+                    <circle cx="12" cy="9" r="4" fill="#fff" opacity=".9"/>
+                </svg>
+                <span class="pin-tip"><?php echo $tip; ?></span>
+            </a>
+            <?php endforeach; ?>
+
         <?php else : ?>
-            <div class="grant-map-empty">
-                白地図画像は <code><?php echo esc_html( get_stylesheet() ); ?>/images/kanagawa-map.png</code> にアップロードしてください。<br>
-                ダウンロード元: <a href="https://freemap.jp/" target="_blank" rel="noopener">つなぐ白地図 (freemap.jp)</a>
+            <div class="map-empty">
+                白地図を <code><?php echo esc_html( get_stylesheet() ); ?>/images/kanagawa-map.png</code> に配置するとピン付き地図が表示されます。<br>
+                ダウンロード: <a href="https://freemap.jp/" target="_blank" rel="noopener">つなぐ白地図（freemap.jp）</a>
             </div>
         <?php endif; ?>
     </div>
@@ -280,6 +451,22 @@ foreach ( $cities as $c ) {
 
 </div>
 
+<script>
+// ピンクリック → カードへスクロール＋ハイライト
+document.querySelectorAll('#grant-kanagawa .map-pin').forEach(function(pin){
+    pin.addEventListener('click', function(e){
+        e.preventDefault();
+        var id = this.getAttribute('href').slice(1);
+        var card = document.getElementById(id);
+        if (!card) return;
+        document.querySelectorAll('#grant-kanagawa .grant-card').forEach(function(c){ c.classList.remove('highlight'); });
+        card.classList.add('highlight');
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function(){ card.classList.remove('highlight'); }, 2000);
+    });
+});
+</script>
+
 <?php
 // -------------------------------------------------------
 // カード描画ヘルパー
@@ -300,7 +487,7 @@ function keichan_grant_kanagawa_render_card( string $city, array $row ): void {
         }
     }
     ?>
-    <article class="grant-card <?php echo $has ? '' : 'empty'; ?>">
+    <article class="grant-card <?php echo $has ? '' : 'empty'; ?>" id="<?php echo 'kcity-' . esc_attr( rawurlencode( $city ) ); ?>">
         <div class="grant-card-city"><?php echo esc_html( $city ); ?></div>
 
         <div class="grant-row">
