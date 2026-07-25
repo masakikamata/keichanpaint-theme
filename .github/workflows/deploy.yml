@@ -1,0 +1,93 @@
+# =====================================================================
+# GitHub Actions: main へ push したら ロリポップFTPへ自動デプロイ
+# =====================================================================
+#
+# 【事前準備 - GitHub Secrets】
+#   リポジトリ → Settings → Secrets and variables → Actions →
+#   [New repository secret] で以下 5 つを登録してください:
+#
+#   ┌──────────────────┬────────────────────────────────────────────┐
+#   │ Secret 名        │ 値の例                                       │
+#   ├──────────────────┼────────────────────────────────────────────┤
+#   │ FTP_SERVER       │ ftp.lolipop.jp                              │
+#   │ FTP_USERNAME     │ lolipop-users-XXXX.chicappa               │
+#   │                  │ (ロリポップFTPアカウント名)                  │
+#   │ FTP_PASSWORD     │ (FTPパスワード)                              │
+#   │ FTP_THEME_DIR    │ /keichanpaint-main.group/                   │
+#   │                  │   wp-content/themes/keichanpaint-theme/     │
+#   │ FTP_MU_DIR       │ /keichanpaint-main.group/                   │
+#   │                  │   wp-content/mu-plugins/                    │
+#   └──────────────────┴────────────────────────────────────────────┘
+#
+#   ※ FTP_SERVER, USERNAME, PASSWORD はロリポップ管理画面 →
+#      「アカウント情報」→「サーバー情報」で確認できます。
+#   ※ THEME_DIR/MU_DIR のパスはロリポップFTPで実物件を開き、
+#      パンくずリストで確認するのが確実です。
+#
+# 【動作】
+#   - main ブランチに push すると自動で実行
+#   - Actions タブから手動実行も可能 (workflow_dispatch)
+#   - テーマファイルとmu-pluginsを並列でFTP同期
+#   - dry-run したい場合は下部の dry-run: true をONに
+# =====================================================================
+
+name: Deploy to Lolipop (FTP)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # テーマ本体を wp-content/themes/keichanpaint-theme/ に同期
+  # mu-plugins/.git/.github/*.md 等は除外
+  # ─────────────────────────────────────────────────────────
+  deploy-theme:
+    name: Sync theme files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: FTP Deploy - theme
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:      ${{ secrets.FTP_SERVER }}
+          username:    ${{ secrets.FTP_USERNAME }}
+          password:    ${{ secrets.FTP_PASSWORD }}
+          protocol:    ftps
+          port:        21
+          server-dir:  ${{ secrets.FTP_THEME_DIR }}
+          local-dir:   ./
+          dry-run:     false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/mu-plugins/**
+            **/*.md
+            **/.gitignore
+            **/README*
+
+  # ─────────────────────────────────────────────────────────
+  # mu-plugins を wp-content/mu-plugins/ に同期
+  # (テーマとは別ディレクトリのため独立ジョブ)
+  # ─────────────────────────────────────────────────────────
+  deploy-mu-plugins:
+    name: Sync mu-plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: FTP Deploy - mu-plugins
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:      ${{ secrets.FTP_SERVER }}
+          username:    ${{ secrets.FTP_USERNAME }}
+          password:    ${{ secrets.FTP_PASSWORD }}
+          protocol:    ftps
+          port:        21
+          server-dir:  ${{ secrets.FTP_MU_DIR }}
+          local-dir:   ./mu-plugins/
+          dry-run:     false
