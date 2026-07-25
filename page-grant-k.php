@@ -327,7 +327,27 @@ $pin_coords = [
             foreach ( $pin_coords as $city => $pos ) :
                 $row     = $data[ $city ] ?? [];
                 $has     = ! empty( $row['grant_name'] ) || ! empty( $row['period'] ) || ! empty( $row['slots'] );
-                $cls     = $has ? '' : 'no-data';
+
+                // ピン色をステータス別に判定（カードの色分けと同じ）
+                //   受付終了 → 赤 #dc3545
+                //   要確認/わずか → 橙 #fd7e14
+                //   受付中     → 緑 #198754
+                //   データなし  → グレー #bbb
+                $pin_fill = '#bbb';
+                $cls      = 'no-data';
+                if ( $has ) {
+                    if ( ! empty( $row['slots'] ) && preg_match( '/(終了|締切|締め切り)/u', $row['slots'] ) ) {
+                        $pin_fill = '#dc3545';
+                        $cls      = 'status-full';
+                    } elseif ( ! empty( $row['slots'] ) && preg_match( '/(要確認|要最新|わずか|残り\s*[1-5]\D)/u', $row['slots'] ) ) {
+                        $pin_fill = '#fd7e14';
+                        $cls      = 'status-warn';
+                    } else {
+                        $pin_fill = '#198754';
+                        $cls      = 'status-open';
+                    }
+                }
+
                 $tip     = esc_html( $city );
                 if ( $has && ! empty( $row['slots'] ) ) $tip .= ' ／ ' . esc_html( $row['slots'] );
                 $anchor  = 'city-' . esc_attr( rawurlencode( $city ) );
@@ -339,7 +359,7 @@ $pin_coords = [
                title="<?php echo esc_attr( $city ); ?>">
                 <svg viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 0C7.03 0 3 4.03 3 9c0 6.75 9 21 9 21s9-14.25 9-21c0-4.97-4.03-9-9-9z"
-                          fill="<?php echo $has ? '#e44d00' : '#bbb'; ?>"/>
+                          fill="<?php echo $pin_fill; ?>"/>
                     <circle cx="12" cy="9" r="4" fill="#fff" opacity=".9"/>
                 </svg>
                 <span class="pin-tip"><?php echo $tip; ?></span>
