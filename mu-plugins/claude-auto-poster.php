@@ -322,7 +322,7 @@ function cap_generate_image( $prompt, $gemini_key ) {
     }
 
     $generatecontent_models = [
-        'gemini-2.0-flash-exp',
+        'gemini-2.5-flash-image',
         'gemini-3.1-flash-image',
     ];
 
@@ -336,7 +336,7 @@ function cap_generate_image( $prompt, $gemini_key ) {
             'generationConfig' => [ 'responseModalities' => [ 'IMAGE', 'TEXT' ] ],
         ] );
 
-        $max_retry = 2;
+        $max_retry = 3;
         for ( $try = 1; $try <= $max_retry; $try++ ) {
             $resp = wp_remote_post( $endpoint, [
                 'timeout' => 90,
@@ -352,9 +352,15 @@ function cap_generate_image( $prompt, $gemini_key ) {
             $http_code = wp_remote_retrieve_response_code( $resp );
             $body_raw  = wp_remote_retrieve_body( $resp );
 
+            if ( $http_code === 404 ) {
+                cap_log( "NG({$gc_model}) HTTP404: モデルが存在しないため次のモデルへ切り替えます。" );
+                break;
+            }
+
             if ( $http_code === 429 ) {
-                cap_log( "429 レート制限({$gc_model}) {$try}回目 — 3秒後にリトライ..." );
-                sleep( 3 );
+                $wait = 5 * $try; // 5秒→10秒→15秒と間隔を広げてリトライ
+                cap_log( "429 レート制限({$gc_model}) {$try}回目 — {$wait}秒後にリトライ..." );
+                if ( $try < $max_retry ) sleep( $wait );
                 continue;
             }
 
@@ -415,7 +421,10 @@ function cap_inject_section_images( $content, $article_title, $gemini_key, $imag
     if ( empty( $matches ) ) return $content;
 
     $images = [];
-    foreach ( $matches as $m ) {
+    foreach ( $matches as $i => $m ) {
+        // 連続リクエストによる429レート制限を避けるため、2件目以降は少し間隔を空ける
+        if ( $i > 0 ) sleep( 3 );
+
         $heading = wp_strip_all_tags( $m[2][0] );
         $style_map = [
             'photo' => 'Realistic photo, Japanese residential house, clean exterior, professional painter, bright trustworthy atmosphere, no text, no watermark, 16:9 ratio.',
@@ -558,7 +567,22 @@ function cap_save_form_settings() {
 // メイン処理
 // ──────────────────────────────────────────────
 
+// 「今すぐ生成」クリック時の手動実行と、直後にWP-Cronがほぼ同時刻へ
+// 再スケジュールされることによる多重実行（同じURLが複数記事として重複生成される）を防ぐロック
 function cap_run_auto_post() {
+    if ( get_transient( 'cap_running_lock' ) ) {
+        cap_log( '⏭ 前の生成処理が実行中のため、今回の呼び出しをスキップしました（多重実行防止）。' );
+        return;
+    }
+    set_transient( 'cap_running_lock', 1, 15 * MINUTE_IN_SECONDS );
+    try {
+        cap_run_auto_post_impl();
+    } finally {
+        delete_transient( 'cap_running_lock' );
+    }
+}
+
+function cap_run_auto_post_impl() {
     $opts = get_option( CAP_OPTION, [] );
 
     $claude_key       = $opts['api_key']              ?? '';
