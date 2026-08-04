@@ -567,7 +567,22 @@ function cap_save_form_settings() {
 // メイン処理
 // ──────────────────────────────────────────────
 
+// 「今すぐ生成」クリック時の手動実行と、直後にWP-Cronがほぼ同時刻へ
+// 再スケジュールされることによる多重実行（同じURLが複数記事として重複生成される）を防ぐロック
 function cap_run_auto_post() {
+    if ( get_transient( 'cap_running_lock' ) ) {
+        cap_log( '⏭ 前の生成処理が実行中のため、今回の呼び出しをスキップしました（多重実行防止）。' );
+        return;
+    }
+    set_transient( 'cap_running_lock', 1, 15 * MINUTE_IN_SECONDS );
+    try {
+        cap_run_auto_post_impl();
+    } finally {
+        delete_transient( 'cap_running_lock' );
+    }
+}
+
+function cap_run_auto_post_impl() {
     $opts = get_option( CAP_OPTION, [] );
 
     $claude_key       = $opts['api_key']              ?? '';
