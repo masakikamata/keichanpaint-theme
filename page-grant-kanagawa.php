@@ -301,9 +301,14 @@ $pin_coords = [
 .grant-value.slots-full  { color: #dc3545; font-weight: 700; }
 .grant-value.slots-open  { color: #198754; font-weight: 700; }
 
+.grant-card-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .7rem;
+}
 .grant-card-link {
     display: inline-block;
-    margin-top: .7rem;
     padding: .35rem .8rem;
     font-size: .8rem;
     font-weight: 600;
@@ -313,10 +318,9 @@ $pin_coords = [
     text-decoration: none;
     transition: background .15s;
 }
-.grant-card-link:hover {
-    background: #b03d00;
-    color: #fff;
-}
+.grant-card-link:hover { background: #b03d00; color: #fff; }
+.grant-card-link-pdf { background: #c0392b; }
+.grant-card-link-pdf:hover { background: #922b21; }
 
 /* 注意事項 */
 .grant-notice {
@@ -472,7 +476,10 @@ document.querySelectorAll('#grant-kanagawa .map-pin').forEach(function(pin){
 // カード描画ヘルパー
 // -------------------------------------------------------
 function keichan_grant_kanagawa_render_card( string $city, array $row ): void {
-    $row = wp_parse_args( $row, [ 'grant_name' => '', 'period' => '', 'slots' => '', 'url' => '' ] );
+    $row = wp_parse_args( $row, [
+        'grant_name' => '', 'period' => '', 'slots' => '',
+        'url' => '', 'pdf_url' => '', 'note' => '',
+    ] );
     $has = ! empty( $row['grant_name'] ) || ! empty( $row['period'] ) || ! empty( $row['slots'] );
 
     // 残り枠のカラー判定
@@ -485,6 +492,16 @@ function keichan_grant_kanagawa_render_card( string $city, array $row ): void {
         } else {
             $slots_class = 'slots-open';
         }
+    }
+
+    // url/pdf_url フィールドから最初の http(s) URL を抽出（フルテキストが入っている場合に対応）
+    $site_link = '';
+    if ( ! empty( $row['url'] ) && preg_match( '#https?://[^\s"<>]+#u', $row['url'], $m ) ) {
+        $site_link = $m[0];
+    }
+    $pdf_link = '';
+    if ( ! empty( $row['pdf_url'] ) && preg_match( '#https?://[^\s"<>]+#u', $row['pdf_url'], $m ) ) {
+        $pdf_link = $m[0];
     }
     ?>
     <article class="grant-card <?php echo $has ? '' : 'empty'; ?>" id="<?php echo 'kcity-' . esc_attr( rawurlencode( $city ) ); ?>">
@@ -511,10 +528,26 @@ function keichan_grant_kanagawa_render_card( string $city, array $row ): void {
             </span>
         </div>
 
-        <?php if ( ! empty( $row['url'] ) ) : ?>
-            <a class="grant-card-link" href="<?php echo esc_url( $row['url'] ); ?>" target="_blank" rel="noopener">
-                公式ページを見る →
-            </a>
+        <?php if ( ! empty( $row['note'] ) ) : ?>
+        <div class="grant-row">
+            <span class="grant-label">備考</span>
+            <span class="grant-value"><?php echo esc_html( $row['note'] ); ?></span>
+        </div>
+        <?php endif; ?>
+
+        <?php if ( $site_link || $pdf_link ) : ?>
+        <div class="grant-card-links">
+            <?php if ( $site_link ) : ?>
+                <a class="grant-card-link" href="<?php echo esc_url( $site_link ); ?>" target="_blank" rel="noopener">
+                    公式ページ →
+                </a>
+            <?php endif; ?>
+            <?php if ( $pdf_link ) : ?>
+                <a class="grant-card-link grant-card-link-pdf" href="<?php echo esc_url( $pdf_link ); ?>" target="_blank" rel="noopener">
+                    📄 PDF
+                </a>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </article>
     <?php
