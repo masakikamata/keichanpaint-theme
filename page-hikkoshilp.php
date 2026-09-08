@@ -642,10 +642,11 @@ img { max-width: 100%; display: block; }
   content: "Q"; position: absolute; left: 12px;
   color: var(--line-green); font-weight: 900;
   font-family: "Inter"; font-size: 14px;
+  opacity: 0;              /* Qラベルは非表示にして+と場所を交代 */
 }
 .faq-q::after {
   content: "＋";
-  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
   color: var(--moss); font-weight: 700;
 }
 .faq-item.open .faq-q::after { content: "−"; }

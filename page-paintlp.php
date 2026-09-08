@@ -742,10 +742,11 @@ img { max-width: 100%; display: block; }
   font-weight: 900;
   font-family: "Inter", sans-serif;
   font-size: 15px;
+  opacity: 0;              /* Qラベルは非表示にして+と場所を交代 */
 }
 .faq-q::after {
   content: "＋";
-  position: absolute; right: 20px; top: 50%;
+  position: absolute; left: 12px; top: 50%;
   transform: translateY(-50%);
   color: var(--accent);
   font-weight: 700;
