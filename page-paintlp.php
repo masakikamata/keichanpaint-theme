@@ -15,12 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <head>
 <meta charset="<?php bloginfo('charset'); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="googlebot" content="noindex,nofollow">
 <meta name="description" content="東京49自治体・神奈川33市町村の助成金完全対応。遮熱・断熱塗料で光熱費削減。代表が最初から最後まで一貫対応する外壁塗装専門店。">
 <meta property="og:title" content="知らないと損する助成金で、外壁塗装を賢く。 | けいちゃんペイント">
 <meta property="og:description" content="令和8年度・東京都49自治体・神奈川県33市町村の助成金を全網羅。書類代行から施工まで一貫サポート。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="<?php echo esc_url( get_permalink() ); ?>">
-<link rel="canonical" href="<?php echo esc_url( get_permalink() ); ?>">
 <?php wp_head(); ?>
 <style>
 /* Cocoon装飾を完全非表示 */

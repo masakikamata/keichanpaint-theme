@@ -15,12 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <head>
 <meta charset="<?php bloginfo('charset'); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="googlebot" content="noindex,nofollow">
 <meta name="description" content="LINE で写真を送るだけ、60秒で概算見積もり。神奈川・東京の引越しは、けいちゃん引越し便へ。大手より2〜3割安く、追加料金なし、しつこい営業なし。">
 <meta property="og:title" content="LINEで写真を送るだけ、60秒で見積もり | けいちゃん引越し便">
 <meta property="og:description" content="神奈川・東京の引越し。大手より2〜3割安く、追加料金なし。LINE友だち追加で段ボール10枚無料プレゼント。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="<?php echo esc_url( get_permalink() ); ?>">
-<link rel="canonical" href="<?php echo esc_url( get_permalink() ); ?>">
 <?php wp_head(); ?>
 <style>
 /* Cocoon装飾を完全非表示 */
