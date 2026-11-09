@@ -145,16 +145,46 @@ add_action( 'wp_head', function() {
 function cap_next_url() {
     $opts  = get_option( CAP_OPTION, [] );
     $urls  = array_values( array_filter( array_map( 'trim', explode( "\n", $opts['source_urls'] ?? '' ) ) ) );
-    if ( empty( $urls ) ) return null;
-    $done    = get_option( 'cap_done_urls', [] );
-    $pending = array_diff( $urls, $done );
-    if ( empty( $pending ) ) {
-        update_option( 'cap_done_urls', [] );
-        $pending = $urls;
+    if ( empty( $urls ) ) {
+        cap_log( '投稿元URLが未設定です。' );
+        return null;
     }
-    $url    = reset( $pending );
-    $done[] = $url;
-    update_option( 'cap_done_urls', array_values( $done ) );
+
+    // URL正規化：末尾スラッシュ・?preview=xxx 等の表記ゆれを吸収して同一URL扱いにする
+    $normalize = function ( $u ) {
+        $u = trim( $u );
+        $p = parse_url( $u );
+        if ( ! $p || empty( $p['host'] ) ) return $u;
+        $scheme = strtolower( $p['scheme'] ?? 'https' );
+        $host   = strtolower( $p['host'] );
+        $path   = rtrim( $p['path'] ?? '/', '/' );
+        if ( $path === '' ) $path = '/';
+        return $scheme . '://' . $host . $path;
+    };
+
+    $done            = get_option( 'cap_done_urls', [] );
+    $done_normalized = array_map( $normalize, $done );
+
+    // 入力リストも正規化して重複行を1つに畳む
+    $urls_normalized_map = []; // normalized => original
+    foreach ( $urls as $u ) {
+        $n = $normalize( $u );
+        if ( ! isset( $urls_normalized_map[ $n ] ) ) $urls_normalized_map[ $n ] = $u;
+    }
+    $pending_norm = array_diff( array_keys( $urls_normalized_map ), $done_normalized );
+
+    if ( empty( $pending_norm ) ) {
+        // 全URL処理済み。自動再処理は重複記事の原因になるため停止する。
+        // 再処理したい場合は管理画面の「処理済みURLをリセット」ボタンを押す。
+        cap_log( '✅ 投稿元URLは全て処理済みです。再処理するには管理画面でリセットしてください。' );
+        return null;
+    }
+
+    $next_norm = reset( $pending_norm );
+    $url       = $urls_normalized_map[ $next_norm ];
+    // 保存は正規化後のキーで行う（表記ゆれの再登録を防ぐ）
+    $done[] = $next_norm;
+    update_option( 'cap_done_urls', array_values( array_unique( $done ) ) );
     return $url;
 }
 
@@ -534,7 +564,10 @@ function cap_run_auto_post() {
     if ( empty( $claude_key ) ) { cap_log( 'Claude APIキーが未設定です。' ); return; }
 
     $url = cap_next_url();
-    if ( ! $url ) { cap_log( '投稿元URLが未設定です。' ); return; }
+    if ( ! $url ) {
+        // cap_next_url() 内で詳細ログ（URL未設定 or 全URL処理済み）が既に出力されている
+        return;
+    }
 
     cap_log( "処理開始: {$url}" );
 
