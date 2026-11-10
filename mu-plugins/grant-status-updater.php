@@ -21,7 +21,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /* GitHubから取り込む既定のRaw URL（管理画面で変更可） */
-const KEICHAN_GRANT_GITHUB_DEFAULT_URL = 'https://raw.githubusercontent.com/masakikamata/keichanpaint-theme/main/tama_11shi_josei_copy.html';
+const KEICHAN_GRANT_GITHUB_DEFAULT_URL = 'https://raw.githubusercontent.com/masakikamata/keichanpaint-theme/main/tokyo_49shi_josei_copy.html';
 
 /* ============================================================
    1. 市区町村マスター
