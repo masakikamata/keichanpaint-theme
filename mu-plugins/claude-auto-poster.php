@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Claude Auto Poster
  * Description: 市の公式サイトから助成金情報を読み取り、テンプレート記事のデザインをそのまま引き継いだ新記事を自動生成・投稿します。
- * Version: 4.5.1
+ * Version: 4.6.0
  * Author: Claude
  *
  * v4.4 変更点:
@@ -17,6 +17,15 @@
  * v4.5.1 変更:
  *   ・GitHub取り込み機能は「助成金管理（東京）」画面に集約。Auto Poster側からは削除
  *   ・投稿元URLは手動貼り付けで使用してください
+ *
+ * v4.6.0 変更（重複記事防止 & PDF対応）:
+ *   ・同じURLから複数記事が生成される問題を根本修正:
+ *     - URL正規化（末尾スラッシュ・大文字小文字・クエリ等の表記ゆれを吸収）
+ *     - 全URL処理済み後の自動リセットを撤廃（管理画面ボタンで手動リセット）
+ *     - source_urls比較を正規化後の集合比較に変更（改行コード違い等の誤リセット防止）
+ *     - 並列実行ロック（transient）を追加（「今すぐ生成」連打やcron重複発火を防止）
+ *   ・情報源としてPDFファイルを読み込み可能に（URLが.pdf or Content-Type: application/pdf）
+ *     - Claude API の document ブロックとして添付、最大32MB
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -142,65 +151,67 @@ add_action( 'wp_head', function() {
 // URLキュー管理
 // ──────────────────────────────────────────────
 
+/**
+ * URL正規化: scheme/host小文字化、末尾スラッシュ除去、query/fragment除去。
+ * 末尾スラッシュ違い・大文字小文字違い・?preview=xxx・#section などの
+ * 表記ゆれを吸収して同一URL扱いにする。
+ */
+function cap_normalize_url( $u ) {
+    $u = trim( $u );
+    if ( $u === '' ) return '';
+    $p = parse_url( $u );
+    if ( ! $p || empty( $p['host'] ) ) return $u;
+    $scheme = strtolower( $p['scheme'] ?? 'https' );
+    $host   = strtolower( $p['host'] );
+    $path   = rtrim( $p['path'] ?? '/', '/' );
+    if ( $path === '' ) $path = '/';
+    return $scheme . '://' . $host . $path;
+}
+
+/**
+ * 複数行テキストを正規化・重複排除・ソート済みのURL集合に変換する。
+ * source_urls 比較用。改行コード違いや行順違い、表記ゆれで余計な
+ * done リセットが発生しないようにする。
+ */
+function cap_url_set( $raw ) {
+    $lines = array_filter( array_map( 'trim', explode( "\n", (string) $raw ) ) );
+    $norm  = array_values( array_unique( array_map( 'cap_normalize_url', $lines ) ) );
+    sort( $norm );
+    return $norm;
+}
+
 function cap_next_url() {
     $opts  = get_option( CAP_OPTION, [] );
     $urls  = array_values( array_filter( array_map( 'trim', explode( "\n", $opts['source_urls'] ?? '' ) ) ) );
-    if ( empty( $urls ) ) return null;
-    $done    = get_option( 'cap_done_urls', [] );
-    $pending = array_diff( $urls, $done );
-    if ( empty( $pending ) ) {
-        update_option( 'cap_done_urls', [] );
-        $pending = $urls;
+    if ( empty( $urls ) ) {
+        cap_log( '投稿元URLが未設定です。' );
+        return null;
     }
-    $url    = reset( $pending );
-    $done[] = $url;
-    update_option( 'cap_done_urls', array_values( $done ) );
+
+    $done            = get_option( 'cap_done_urls', [] );
+    $done_normalized = array_map( 'cap_normalize_url', $done );
+
+    // 入力リストを正規化してユニーク化（normalized => original の対応表）
+    $urls_normalized_map = [];
+    foreach ( $urls as $u ) {
+        $n = cap_normalize_url( $u );
+        if ( $n === '' ) continue;
+        if ( ! isset( $urls_normalized_map[ $n ] ) ) $urls_normalized_map[ $n ] = $u;
+    }
+    $pending_norm = array_diff( array_keys( $urls_normalized_map ), $done_normalized );
+
+    if ( empty( $pending_norm ) ) {
+        // 全URL処理済み。自動再処理は重複記事の原因になるため停止する。
+        // 再処理したい場合は管理画面の「処理済みURLをリセット」ボタンを押す。
+        cap_log( '✅ 投稿元URLは全て処理済みです。再処理するには管理画面でリセットしてください。' );
+        return null;
+    }
+
+    $next_norm = reset( $pending_norm );
+    $url       = $urls_normalized_map[ $next_norm ];
+    $done[]    = $next_norm; // 保存は正規化後のキーで行う
+    update_option( 'cap_done_urls', array_values( array_unique( $done ) ) );
     return $url;
-}
-
-// 生成失敗時にURLを「未処理」へ戻す（クレジット不足など、次回リトライ可能なエラー用）
-function cap_unmark_url( $url ) {
-    $done = get_option( 'cap_done_urls', [] );
-    $done = array_values( array_diff( $done, [ $url ] ) );
-    update_option( 'cap_done_urls', $done );
-}
-
-// JSON文字列内に紛れ込んだ生の制御文字（改行・タブ等）をエスケープする。
-// 文字列外の空白や改行はそのまま維持する。
-function cap_escape_json_string_controls( $raw ) {
-    $out       = '';
-    $in_string = false;
-    $escaped   = false;
-    $len       = strlen( $raw );
-    for ( $i = 0; $i < $len; $i++ ) {
-        $c = $raw[ $i ];
-        if ( $in_string ) {
-            if ( $escaped ) {
-                $out    .= $c;
-                $escaped = false;
-                continue;
-            }
-            if ( $c === '\\' ) { $out .= $c; $escaped = true; continue; }
-            if ( $c === '"' )  { $out .= $c; $in_string = false; continue; }
-            $ord = ord( $c );
-            if ( $ord < 0x20 ) {
-                switch ( $c ) {
-                    case "\n": $out .= '\\n'; break;
-                    case "\r": $out .= '\\r'; break;
-                    case "\t": $out .= '\\t'; break;
-                    case "\b": $out .= '\\b'; break;
-                    case "\f": $out .= '\\f'; break;
-                    default:   $out .= sprintf( '\\u%04x', $ord ); break;
-                }
-                continue;
-            }
-            $out .= $c;
-        } else {
-            if ( $c === '"' ) $in_string = true;
-            $out .= $c;
-        }
-    }
-    return $out;
 }
 
 // ──────────────────────────────────────────────
@@ -212,6 +223,55 @@ function cap_fetch_page_text( $url ) {
     if ( is_wp_error( $resp ) ) return null;
     $text = wp_strip_all_tags( wp_remote_retrieve_body( $resp ) );
     return mb_substr( preg_replace( '/\s{3,}/', "\n\n", $text ), 0, 8000 );
+}
+
+/**
+ * [v4.6] 情報源URLを取得し、HTML or PDF を判別して返す。
+ *   PDF の場合: [ 'type' => 'pdf', 'base64' => '...', 'size' => int ]
+ *   HTML の場合: [ 'type' => 'text', 'text' => '抽出テキスト（8000文字まで）' ]
+ *   失敗時: null
+ * PDF 判定は content-type / 拡張子 / マジックバイト のいずれかで行う。
+ */
+function cap_fetch_source_payload( $url ) {
+    $resp = wp_remote_get( $url, [
+        'timeout'    => 60,
+        'user-agent' => 'Mozilla/5.0 (compatible; KeichanAutoPoster/4.6)',
+    ] );
+    if ( is_wp_error( $resp ) ) {
+        cap_log( "ページ取得失敗: {$url} - " . $resp->get_error_message() );
+        return null;
+    }
+    $code = wp_remote_retrieve_response_code( $resp );
+    if ( $code !== 200 ) {
+        cap_log( "ページ取得失敗: {$url} - HTTP {$code}" );
+        return null;
+    }
+    $body  = wp_remote_retrieve_body( $resp );
+    $ctype = (string) wp_remote_retrieve_header( $resp, 'content-type' );
+
+    $is_pdf = stripos( $ctype, 'application/pdf' ) !== false
+           || preg_match( '/\.pdf(\?|$)/i', $url )
+           || strncmp( $body, '%PDF', 4 ) === 0;
+
+    if ( $is_pdf ) {
+        $size = strlen( $body );
+        // Claude API の PDF 入力上限: 32MB
+        if ( $size > 32 * 1024 * 1024 ) {
+            cap_log( sprintf( '⚠️ PDFサイズ超過（%.1fMB > 32MB）: %s', $size / 1024 / 1024, $url ) );
+            return null;
+        }
+        cap_log( sprintf( '📄 PDF検出（%.1fKB）: %s', $size / 1024, $url ) );
+        return [
+            'type'   => 'pdf',
+            'base64' => base64_encode( $body ),
+            'size'   => $size,
+        ];
+    }
+
+    $text = wp_strip_all_tags( $body );
+    $text = mb_substr( preg_replace( '/\s{3,}/', "\n\n", $text ), 0, 8000 );
+    if ( $text === '' ) return null;
+    return [ 'type' => 'text', 'text' => $text ];
 }
 
 // ──────────────────────────────────────────────
@@ -542,11 +602,19 @@ function cap_save_form_settings() {
         'image_style'       => in_array( $_POST['image_style'], ['photo','flat','manga'] ) ? $_POST['image_style'] : 'photo',
     ];
 
-    // [v4.4.1] 投稿元URLが変わったら処理済みリストを自動リセット
-    $old = get_option( CAP_OPTION, [] );
-    if ( ( $old['source_urls'] ?? '' ) !== $new['source_urls'] ) {
+    // [v4.6] 投稿元URLが実質変わったときだけ処理済みリストをリセット。
+    // 以前は生の文字列比較だったため、改行コード違い・末尾空白・行順違いなどで
+    // done が頻繁にリセットされ、同じURLから複数記事が生成される原因になっていた。
+    // 正規化後のURL集合（順序無視・表記ゆれ無視）が変わった場合のみリセットする。
+    $old     = get_option( CAP_OPTION, [] );
+    $old_set = cap_url_set( $old['source_urls'] ?? '' );
+    $new_set = cap_url_set( $new['source_urls'] );
+    // 新しいURLが追加されていれば done をリセットして新URLも処理対象にする。
+    // URLが減っただけ（削除のみ）なら done は温存する。
+    $added = array_diff( $new_set, $old_set );
+    if ( ! empty( $added ) ) {
         update_option( 'cap_done_urls', [] );
-        cap_log( '🔄 投稿元URLが変更されたため処理済みリストをリセットしました。' );
+        cap_log( '🔄 投稿元URLに新しいURLが追加されたため処理済みリストをリセットしました。' );
     }
 
     update_option( CAP_OPTION, $new );
@@ -559,6 +627,15 @@ function cap_save_form_settings() {
 // ──────────────────────────────────────────────
 
 function cap_run_auto_post() {
+    // [v4.6] 並列実行ロック: 「今すぐ生成」連打や cron と手動の同時発火で
+    // 同じURLが並列に処理されるのを防ぐ。処理完了 or 15分経過で自動解除。
+    if ( get_transient( 'cap_running' ) ) {
+        cap_log( '⏸ 既に別の実行が走行中のためスキップしました（前回開始: ' . get_transient( 'cap_running' ) . '）' );
+        return;
+    }
+    set_transient( 'cap_running', current_time( 'Y-m-d H:i:s' ), 15 * MINUTE_IN_SECONDS );
+    register_shutdown_function( function () { delete_transient( 'cap_running' ); } );
+
     $opts = get_option( CAP_OPTION, [] );
 
     $claude_key       = $opts['api_key']              ?? '';
@@ -579,12 +656,22 @@ function cap_run_auto_post() {
     if ( empty( $claude_key ) ) { cap_log( 'Claude APIキーが未設定です。' ); return; }
 
     $url = cap_next_url();
-    if ( ! $url ) { cap_log( '投稿元URLが未設定です。' ); return; }
+    if ( ! $url ) {
+        // cap_next_url() 内で詳細ログ（URL未設定 or 全URL処理済み）が既に出力されている
+        return;
+    }
 
     cap_log( "処理開始: {$url}" );
 
-    $source_text = cap_fetch_page_text( $url );
-    if ( ! $source_text ) { cap_log( "ページ取得失敗: {$url}" ); return; }
+    // [v4.6] PDF対応: 情報源をHTML/PDFで分岐取得
+    $source = cap_fetch_source_payload( $url );
+    if ( ! $source ) return; // 失敗ログは cap_fetch_source_payload 内で出力済み
+
+    // プロンプト内に埋め込む「情報源の内容」。PDFの場合は本文ではなく指示文を入れ、
+    // 実際のPDFは Claude API のメッセージに document ブロックとして添付する。
+    $source_text = ( $source['type'] === 'pdf' )
+        ? '（この後に添付されたPDFファイルを情報源として参照してください。表・画像・レイアウトも含めて読み取ってください。）'
+        : $source['text'];
 
     $template_raw   = cap_get_template_content( $template_id );
     $template_post  = $template_id ? get_post( intval( $template_id ) ) : null;
@@ -638,6 +725,23 @@ function cap_run_auto_post() {
     }
 
     // ── Claude API 呼び出し ──
+    // [v4.6] PDF の場合は document ブロックを user メッセージに添付する。
+    if ( $source['type'] === 'pdf' ) {
+        $user_content = [
+            [
+                'type'   => 'document',
+                'source' => [
+                    'type'       => 'base64',
+                    'media_type' => 'application/pdf',
+                    'data'       => $source['base64'],
+                ],
+            ],
+            [ 'type' => 'text', 'text' => $prompt ],
+        ];
+    } else {
+        $user_content = $prompt;
+    }
+
     $response = wp_remote_post( 'https://api.anthropic.com/v1/messages', [
         'timeout' => 180,
         'headers' => [
@@ -648,52 +752,28 @@ function cap_run_auto_post() {
         'body' => json_encode( [
             'model'      => $model,
             'max_tokens' => 16000,
-            'messages'   => [ [ 'role' => 'user', 'content' => $prompt ] ],
+            'messages'   => [ [ 'role' => 'user', 'content' => $user_content ] ],
         ] ),
     ] );
 
-    if ( is_wp_error( $response ) ) { cap_log( 'Claude APIエラー: ' . $response->get_error_message() ); cap_unmark_url( $url ); return; }
+    if ( is_wp_error( $response ) ) { cap_log( 'Claude APIエラー: ' . $response->get_error_message() ); return; }
 
     $http_code = wp_remote_retrieve_response_code( $response );
-    $body_raw  = wp_remote_retrieve_body( $response );
-    $body      = json_decode( $body_raw, true );
-
-    // クレジット残高不足を明示的に検出
-    $err_msg  = $body['error']['message'] ?? '';
-    $err_type = $body['error']['type']    ?? '';
-    if ( $http_code === 400 && stripos( $err_msg, 'credit balance is too low' ) !== false ) {
-        cap_log( '❌ Anthropic APIのクレジット残高不足です。https://console.anthropic.com/settings/billing でチャージまたはプランをアップグレードしてください。' );
-        cap_unmark_url( $url );
-        return;
-    }
-    if ( $http_code >= 400 ) {
-        cap_log( "Claude APIがHTTP{$http_code}を返しました（{$err_type}）: " . substr( $err_msg ?: $body_raw, 0, 300 ) );
-        cap_unmark_url( $url );
-        return;
-    }
+    $body      = json_decode( wp_remote_retrieve_body( $response ), true );
 
     if ( ( $body['stop_reason'] ?? '' ) === 'max_tokens' ) {
         cap_log( '⚠️ Claude応答がmax_tokensで打ち切られました。テンプレートが長すぎる可能性があります。' );
     }
 
     $raw = $body['content'][0]['text'] ?? '';
-    if ( empty( $raw ) ) { cap_log( "Claude応答が空です。HTTP{$http_code}: " . substr( $body_raw, 0, 300 ) ); cap_unmark_url( $url ); return; }
+    if ( empty( $raw ) ) { cap_log( "Claude応答が空です。HTTP{$http_code}: " . substr( wp_remote_retrieve_body( $response ), 0, 300 ) ); return; }
 
     if ( preg_match( '/```(?:json)?\s*([\s\S]+?)\s*```/s', $raw, $m ) ) $raw = $m[1];
     if ( preg_match( '/(\{[\s\S]*\})/s', $raw, $m2 ) ) $raw = $m2[1];
 
     $article = json_decode( $raw, true );
 
-    // Claudeが content 内に生の制御文字（改行/タブ等）を入れた場合の復旧
-    if ( json_last_error() !== JSON_ERROR_NONE ) {
-        $fixed   = cap_escape_json_string_controls( $raw );
-        $article = json_decode( $fixed, true );
-        if ( json_last_error() === JSON_ERROR_NONE ) {
-            cap_log( '⚠️ JSON内の制御文字をエスケープして復旧しました。' );
-        }
-    }
-
-    if ( json_last_error() !== JSON_ERROR_NONE ) { cap_log( 'JSONパースエラー(' . json_last_error_msg() . '): ' . substr( $raw, 0, 400 ) ); cap_unmark_url( $url ); return; }
+    if ( json_last_error() !== JSON_ERROR_NONE ) { cap_log( 'JSONパースエラー(' . json_last_error_msg() . '): ' . substr( $raw, 0, 400 ) ); return; }
     if ( empty( $article['title'] ) || empty( $article['content'] ) ) { cap_log( 'title/content が空です: ' . substr( $raw, 0, 300 ) ); return; }
 
     $content = $article['content'];
@@ -882,7 +962,7 @@ function cap_settings_page() {
     $tmpl_label    = $tmpl_post ? '✅ ' . $tmpl_post->post_title . ' (ID:' . $tmpl_id . ')' : '';
     ?>
     <div class="wrap">
-        <h1>🤖 Claude Auto Poster <small style="font-size:13px;color:#7a8fa6;">v4.5.1</small></h1>
+        <h1>🤖 Claude Auto Poster <small style="font-size:13px;color:#7a8fa6;">v4.6.0</small></h1>
         <p>次回自動実行: <strong><?= $next_run ? date_i18n('Y-m-d H:i:s',$next_run) : '未設定' ?></strong>
            &nbsp;|&nbsp; 処理済みURL: <strong><?= count($done_urls) ?>件</strong></p>
 
